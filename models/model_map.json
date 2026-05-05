@@ -1,0 +1,5 @@
+{
+  "manager": "qwen2.5:32b-instruct",
+  "developer": "qwen2.5-coder:32b",
+  "reviewer": "mistral-small:24b"
+}
