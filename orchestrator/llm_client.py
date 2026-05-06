@@ -1,18 +1,31 @@
 import subprocess
 import json
+import re
 from orchestrator.logger import log
 
 
-def stop_ollama():
+def extract_json(text):
+    text = text.strip()
+
+    # remove code fences if present
+    text = re.sub(r"```json|```", "", text)
+
+    # try direct parse first
     try:
-        subprocess.run(
-            ["ollama", "stop", "all"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        log("[LLM] Stopped all Ollama models")
-    except Exception as e:
-        log(f"[LLM] Failed to stop models: {e}")
+        return json.loads(text)
+    except:
+        pass
+
+    # fallback: extract first JSON block (object or array)
+    matches = re.findall(r"(\{.*\}|\[.*\])", text, re.DOTALL)
+
+    for match in matches:
+        try:
+            return json.loads(match)
+        except:
+            continue
+
+    raise ValueError(f"Failed to parse JSON:\n{text}")
 
 
 def call_model(model, system_prompt, user_prompt):
@@ -25,38 +38,21 @@ def call_model(model, system_prompt, user_prompt):
 </user>
 """
 
-    # Ensure clean memory before starting
-    stop_ollama()
-
     log(f"[LLM] Running {model} via CLI")
 
-    result = subprocess.run(
+    process = subprocess.Popen(
         ["ollama", "run", model],
-        input=prompt,
-        text=True,
-        capture_output=True
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
     )
 
-    output = result.stdout
+    stdout, stderr = process.communicate(prompt)
 
-    if result.returncode != 0:
-        err = result.stderr
-        stop_ollama()
-        raise Exception(f"Model error: {err}")
-
-    print(output)  # show full output after completion
+    if process.returncode != 0:
+        raise Exception(f"Model error: {stderr}")
 
     log(f"[LLM] Completed {model}")
 
-    # Free memory immediately after run
-    stop_ollama()
-
-    # Extract JSON safely
-    try:
-        return json.loads(output)
-    except:
-        start = output.find("{")
-        end = output.rfind("}") + 1
-        if start == -1 or end == -1:
-            raise Exception("No JSON found in model output")
-        return json.loads(output[start:end])
+    return extract_json(stdout)

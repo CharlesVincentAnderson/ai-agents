@@ -7,3 +7,4 @@ MODELS = {
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MAX_RETRIES = 3
 WORKSPACE = "workspace/project"
+MAIN_MODULE = "app.py"

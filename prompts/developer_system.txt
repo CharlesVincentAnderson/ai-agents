@@ -32,3 +32,8 @@ Do NOT include:
 - comments outside JSON
 
 Your output MUST be parseable JSON.
+
+CRITICAL RULE:
+- If task requires a function called hello(), it MUST be placed in app.py
+- app.py MUST be created in workspace/project root
+- Do NOT rename app.py
