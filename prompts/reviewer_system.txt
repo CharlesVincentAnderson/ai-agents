@@ -8,7 +8,19 @@ Return ONLY JSON.
   "notes": ""
 }
 
+STRICT RULES:
+- Evaluate ONLY against acceptance criteria
+- Reject if ANY requirement is not fully met
+- Reject if behavior differs from original requirements
+
 Reject if:
-- requirements not met
+- incorrect behavior (e.g., print vs return mismatch)
 - missing files
-- obvious bugs
+- incorrect outputs
+- syntax errors
+
+blocking_issues MUST:
+- be specific and actionable
+
+If approved:
+- blocking_issues must be empty

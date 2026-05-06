@@ -1,29 +1,35 @@
 from orchestrator.llm_client import call_model
-from orchestrator.config import MODELS, WORKSPACE
-import os
+from orchestrator.prompt_loader import load_prompt
 
-def load_prompt():
-    with open("prompts/developer_system.txt") as f:
-        return f.read()
+SYSTEM_PROMPT = load_prompt("developer_system.txt")
 
-def get_workspace_snapshot():
-    snapshot = []
-    for root, _, files in os.walk(WORKSPACE):
-        for f in files:
-            path = os.path.join(root, f)
-            with open(path, "r", errors="ignore") as fh:
-                snapshot.append(f"FILE: {path}\n{fh.read()}\n")
-    return "\n".join(snapshot)
+
+def build_user_prompt(task):
+    return f"""
+Task ID: {task['id']}
+
+Title:
+{task['title']}
+
+Description:
+{task['description']}
+
+Files to modify:
+{task['files']}
+
+Acceptance Criteria:
+{task['acceptance_criteria']}
+
+Feedback (if any):
+{task.get('feedback', [])}
+"""
+
 
 def implement(task):
-    system = load_prompt()
-    context = get_workspace_snapshot()
+    user_prompt = build_user_prompt(task)
 
-    prompt = f"""
-TASK:
-{task}
-
-CURRENT CODEBASE:
-{context}
-"""
-    return call_model(MODELS["developer"], system, prompt)
+    return call_model(
+        model="mistral-small:24b",
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=user_prompt
+    )

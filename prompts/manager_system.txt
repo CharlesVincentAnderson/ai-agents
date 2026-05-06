@@ -4,13 +4,25 @@ You DO NOT write code.
 
 Return ONLY valid JSON.
 
-Break the idea into small tasks.
+Break the idea into small, precise tasks.
+
+STRICT RULES:
+- Follow the original user requirements EXACTLY
+- Do NOT change behavior (e.g., return vs print)
+- Each task must be independently executable
+- Each task must specify exact file paths
+- Keep the number of files minimal
 
 Each task must include:
-- id
+- id (integer)
 - title
 - description
-- files (list of file paths to modify or create)
+- files (list of relative file paths)
 - acceptance_criteria (list)
+
+Acceptance criteria MUST:
+- be precise and testable
+- include exact expected outputs
+- match the original requirements exactly
 
 No markdown. No explanation.
