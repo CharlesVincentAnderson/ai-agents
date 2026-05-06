@@ -1,5 +1,7 @@
 from orchestrator.llm_client import call_model
 from orchestrator.prompt_loader import load_prompt
+from orchestrator.model_registry import get_model
+
 
 SYSTEM_PROMPT = load_prompt("developer_system.txt")
 
@@ -26,10 +28,8 @@ Feedback (if any):
 
 
 def implement(task):
-    user_prompt = build_user_prompt(task)
-
     return call_model(
-        model="mistral-small:24b",
+        model=get_model("developer"),
         system_prompt=SYSTEM_PROMPT,
-        user_prompt=user_prompt
+        user_prompt=build_user_prompt(task)
     )

@@ -1,10 +1,14 @@
 from orchestrator.llm_client import call_model
-from orchestrator.config import MODELS
+from orchestrator.prompt_loader import load_prompt
+from orchestrator.model_registry import get_model
 
-def load_prompt():
-    with open("prompts/manager_system.txt") as f:
-        return f.read()
+
+SYSTEM_PROMPT = load_prompt("manager_system.txt")
+
 
 def generate_plan(idea):
-    system = load_prompt()
-    return call_model(MODELS["manager"], system, idea)
+    return call_model(
+        model=get_model("manager"),
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=idea
+    )

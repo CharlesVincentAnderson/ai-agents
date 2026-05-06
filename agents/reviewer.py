@@ -1,17 +1,20 @@
 from orchestrator.llm_client import call_model
-from orchestrator.config import MODELS
+from orchestrator.prompt_loader import load_prompt
+from orchestrator.model_registry import get_model
 
-def load_prompt():
-    with open("prompts/reviewer_system.txt") as f:
-        return f.read()
 
-def review(task, changes):
-    system = load_prompt()
-    prompt = f"""
-TASK:
+SYSTEM_PROMPT = load_prompt("reviewer_system.txt")
+
+
+def review(task, result):
+    return call_model(
+        model=get_model("reviewer"),
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=f"""
+Task:
 {task}
 
-PROPOSED CHANGES:
-{changes}
+Result:
+{result}
 """
-    return call_model(MODELS["reviewer"], system, prompt)
+    )

@@ -1,5 +1,6 @@
 import os
 import subprocess
+import time
 
 from agents.manager import generate_plan
 from agents.developer import implement
@@ -47,11 +48,8 @@ def build_patches(task, changes):
 
         diff = generate_diff(old_content, new_content, file_path)
 
-        if not diff.strip():
-            log(f"No changes detected for {file_path}")
-            continue
-
-        patches.append(diff)
+        if diff.strip():
+            patches.append(diff)
 
     return patches
 
@@ -72,12 +70,14 @@ def run_pipeline(idea):
 
         while not approved and attempts < MAX_RETRIES:
             attempts += 1
+
             log(f"Attempt {attempts} - Developer running")
 
             try:
                 result = implement(task)
             except Exception as e:
                 log(f"Developer failed: {e}")
+                time.sleep(5)
                 continue
 
             log("Reviewing changes")
@@ -86,12 +86,14 @@ def run_pipeline(idea):
                 review_result = review(task, result)
             except Exception as e:
                 log(f"Reviewer failed: {e}")
+                time.sleep(5)
                 continue
 
             if not review_result.get("approved"):
                 issues = review_result.get("blocking_issues", [])
                 log(f"Rejected: {issues}")
                 task["feedback"] = issues
+                time.sleep(5)
                 continue
 
             log("Building patches")
@@ -101,6 +103,7 @@ def run_pipeline(idea):
             except Exception as e:
                 log(f"Patch build failed: {e}")
                 task["feedback"] = [str(e)]
+                time.sleep(5)
                 continue
 
             if not patches:
@@ -115,7 +118,7 @@ def run_pipeline(idea):
                     apply_patch(patch, WORKSPACE)
             except Exception as e:
                 log(f"Patch application failed: {e}")
-                task["feedback"] = [str(e)]
+                time.sleep(5)
                 continue
 
             log("Running tests")
@@ -126,6 +129,7 @@ def run_pipeline(idea):
                 log("Tests failed")
                 log(test_result["output"])
                 task["feedback"] = [test_result["output"]]
+                time.sleep(5)
                 continue
 
             log("Committing changes")
@@ -134,7 +138,6 @@ def run_pipeline(idea):
                 git_commit(f"Task {task['id']}: {task['title']}")
             except Exception as e:
                 log(f"Git commit failed: {e}")
-                continue
 
             approved = True
             log("Task completed")

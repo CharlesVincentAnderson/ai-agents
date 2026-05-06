@@ -1,5 +1,5 @@
 {
-  "manager": "qwen2.5:32b-instruct",
+  "manager": "mistral-small:24b",
   "developer": "mistral-small:24b",
-  "reviewer": "deepseek-coder-v2:16b"
+  "reviewer": "mistral-small:24b"
 }
