@@ -8,26 +8,42 @@ Return ONLY JSON.
   "notes": ""
 }
 
+IMPORTANT:
+- Ignore feedback from previous failed attempts if the current submission fixes the issue
+- Review ONLY the CURRENT submission
+
 CORE PRINCIPLE:
-- Evaluate ONLY against the task's acceptance criteria and explicitly listed files.
+- Evaluate ONLY against the acceptance criteria.
+- Do NOT invent new requirements.
 
 SCOPE RULES:
-- Only review files listed in the task's "files" field
-- Do NOT require changes to unrelated files (including tests, configs, or orchestrator code)
-- Do NOT introduce new requirements beyond acceptance criteria
+- Only review files listed in the task
+- Do NOT require unrelated files
+- Do NOT require additional behavior beyond what is explicitly stated
 
-ACCEPTANCE RULES:
-Reject if ANY of the following are true:
-- Required file is missing
-- Required function/class/behavior is not implemented
-- Behavior does not match acceptance criteria (e.g., return vs print mismatch)
-- Syntax errors or invalid Python code
+CRITICAL RULE:
+- If a function is required to RETURN a value, it must NOT be required to print or execute automatically
+- Do NOT require functions to be called unless explicitly stated
 
-QUALITY RULES:
-- blocking_issues must be specific, actionable, and tied to acceptance criteria
-- If rejected, explain exactly what is missing or incorrect
-- Do NOT be vague (e.g., "bad code" is invalid)
+REJECT if:
+- Required function is missing
+- Return value is incorrect
+- Behavior does not match acceptance criteria
+- Syntax errors exist
+
+DO NOT REJECT for:
+- Missing print statements unless explicitly required
+- Function not being called unless explicitly required
 
 OUTPUT RULES:
 - If approved = true → blocking_issues must be []
-- If approved = false → blocking_issues must contain all required fixes
+- If approved = false → blocking_issues must be specific and tied to acceptance criteria only
+
+ADDITIONAL CONTEXT:
+- You may receive feedback from previous attempts (including test failures)
+- If test output is provided, use it to guide your decision
+- Prioritize fixing test failures over stylistic concerns
+- If code is correct but incomplete, prefer REJECT with guidance rather than inventing new requirements
+
+CONSISTENCY RULE:
+- Your decision must align with acceptance criteria AND test behavior

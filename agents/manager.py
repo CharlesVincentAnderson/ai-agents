@@ -2,7 +2,6 @@ from orchestrator.llm_client import call_model
 from orchestrator.prompt_loader import load_prompt
 from orchestrator.model_registry import get_model
 
-
 SYSTEM_PROMPT = load_prompt("manager_system.txt")
 
 

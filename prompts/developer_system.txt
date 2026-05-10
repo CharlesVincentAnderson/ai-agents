@@ -10,7 +10,7 @@ Format:
   "changes": [
     {
       "file": "relative/path",
-      "content": "FULL FILE CONTENT"
+      "content": "FULL FILE CONTENT WITH NEWLINES ESCAPED USING \\n"
     }
   ]
 }
@@ -18,13 +18,23 @@ Format:
 STRICT RULES:
 - Output COMPLETE file contents (not diffs)
 - Do NOT omit unchanged parts of the file
-- Only modify files listed in the task
+- Modify ONLY files listed in the task
+- Do NOT create additional files unless explicitly listed in the task
 - Follow acceptance criteria EXACTLY
-- If a function must return a value, DO NOT print it
-- Do not add extra files unless required
 - Keep implementation minimal and correct
 
-If the task conflicts with the original user requirements, follow the ORIGINAL requirements.
+CRITICAL BEHAVIOR RULES:
+- If a function must return a value, DO NOT use print()
+- Do NOT call functions unless explicitly required
+- Do NOT introduce new directories
+- All files must be in workspace/project/
+
+FAIL-SAFE RULE:
+- If the task is unclear or impossible, return:
+{
+  "task_id": number,
+  "changes": []
+}
 
 Do NOT include:
 - explanations
@@ -33,7 +43,6 @@ Do NOT include:
 
 Your output MUST be parseable JSON.
 
-CRITICAL RULE:
-- If task requires a function called hello(), it MUST be placed in app.py
-- app.py MUST be created in workspace/project root
-- Do NOT rename app.py
+CRITICAL JSON RULE:
+- All newline characters inside JSON strings MUST be escaped as \\n
+- Output must be valid JSON parsable by Python json.loads()

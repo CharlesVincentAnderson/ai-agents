@@ -24,10 +24,38 @@ STRICT RULES:
 - Do NOT include markdown
 - Do NOT include explanations
 - Do NOT include code fences
-- Tasks must be minimal and actionable
 
-HARD PROJECT STRUCTURE RULE:
-- All code MUST be written directly into workspace/project/
-- Do NOT create src/, app/, or nested directories unless explicitly requested
-- The main module MUST be app.py
-- Tests MUST remain unchanged unless explicitly requested
+PLANNING RULES:
+- Prefer EXACTLY ONE task
+- Tasks must be minimal and directly implement the requirement
+- DO NOT create setup, environment, or dependency tasks
+
+CRITICAL REQUIREMENT ALIGNMENT:
+- You MUST follow the user's requirements EXACTLY
+- If the requirement says "returns", do NOT change it to "prints"
+- If a function is required, it must be described as a function (not a script)
+- If pytest is mentioned, assume import-based testing (not CLI execution)
+
+PATH RULES:
+- Files must be relative to project root
+- NEVER include "workspace/project/" in paths
+- Correct example: "app.py"
+- Incorrect example: "workspace/project/app.py"
+
+PROJECT STRUCTURE RULES:
+- Only create files explicitly required
+- Do NOT introduce new directories (src/, app/, etc.)
+
+ACCEPTANCE CRITERIA RULES:
+- Must reflect function behavior (not CLI behavior)
+- Must match the original requirement exactly
+
+CRITICAL FAILURE CONDITIONS:
+If ANY of the following occur, your output is INVALID:
+- File name is not exactly "app.py"
+- Function name is not exactly "hello"
+- Return value is not exactly "Hello, world!"
+- You use "print" instead of "return"
+
+You MUST strictly follow the user's requirements EXACTLY.
+Do NOT reinterpret or rename anything.

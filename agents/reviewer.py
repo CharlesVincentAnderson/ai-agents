@@ -2,7 +2,6 @@ from orchestrator.llm_client import call_model
 from orchestrator.prompt_loader import load_prompt
 from orchestrator.model_registry import get_model
 
-
 SYSTEM_PROMPT = load_prompt("reviewer_system.txt")
 
 
@@ -14,7 +13,7 @@ def review(task, result):
 Task:
 {task}
 
-Result:
+Proposed Changes:
 {result}
 """
     )
