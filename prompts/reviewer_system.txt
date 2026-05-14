@@ -16,6 +16,7 @@ CORE PRINCIPLE:
 - Evaluate ONLY against the acceptance criteria.
 - Do NOT invent new requirements.
 
+
 SCOPE RULES:
 - Only review files listed in the task
 - Do NOT require unrelated files
@@ -30,6 +31,9 @@ REJECT if:
 - Return value is incorrect
 - Behavior does not match acceptance criteria
 - Syntax errors exist
+- Return types or data structures differ from the requested contract
+- The implementation processes additional inputs or values not required by the specification
+- Batch-processing behavior was introduced without being explicitly requested
 
 DO NOT REJECT for:
 - Missing print statements unless explicitly required

@@ -59,18 +59,9 @@ def validate_plan(tasks):
             if f != "app.py":
                 raise Exception(f"Manager violated file constraint: {f}")
 
-        # enforce correct function name
-        if "hello_world" in combined:
-            raise Exception("Manager used wrong function name")
-
         # enforce no print behavior
         if "print" in combined.lower():
             raise Exception("Manager introduced print behavior")
-
-        # enforce exact casing
-        if "Hello, World!" in combined:
-            raise Exception("Manager used wrong casing")
-
 
 def validate_change(task, change):
     file_path = change.get("file")
@@ -92,16 +83,6 @@ def validate_change(task, change):
     # convert escaped newlines into real newlines
     content = normalize_content(content)
     change["content"] = content
-
-    if "print(" in content:
-        raise Exception("Do not use print()")
-
-    if "def hello(" not in content:
-        raise Exception("Missing hello() function")
-
-    if 'return "Hello, world!"' not in content and \
-       "return 'Hello, world!'" not in content:
-        raise Exception("Incorrect return value")
 
 # ---------------------------
 # FILE WRITES

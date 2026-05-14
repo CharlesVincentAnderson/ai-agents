@@ -45,6 +45,12 @@ PATH RULES:
 PROJECT STRUCTURE RULES:
 - Only create files explicitly required
 - Do NOT introduce new directories (src/, app/, etc.)
+- Preserve the exact input/output contract requested by the user
+- Preserve return types and data shapes exactly
+- Do NOT change single-item operations into batch-processing behavior
+- Do NOT introduce iteration, aggregation, or collection-building unless explicitly required
+- Functions should operate only on the inputs explicitly provided by the caller
+
 
 ACCEPTANCE CRITERIA RULES:
 - Must reflect function behavior (not CLI behavior)
@@ -53,9 +59,6 @@ ACCEPTANCE CRITERIA RULES:
 CRITICAL FAILURE CONDITIONS:
 If ANY of the following occur, your output is INVALID:
 - File name is not exactly "app.py"
-- Function name is not exactly "hello"
-- Return value is not exactly "Hello, world!"
-- You use "print" instead of "return"
 
 You MUST strictly follow the user's requirements EXACTLY.
 Do NOT reinterpret or rename anything.
