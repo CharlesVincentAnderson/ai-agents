@@ -1,5 +1,5 @@
 {
   "manager": "mistral-small:24b",
-  "developer": "mistral-small:24b",
+  "developer": "deepseek-coder-v2:16b",
   "reviewer": "mistral-small:24b"
 }

@@ -1,7 +1,7 @@
 MODELS = {
-    "manager": "qwen2.5:32b-instruct",
-    "developer": "mistral-small:24b",
-    "reviewer": "deepseek-coder-v2:16b"
+    "manager": "mistral-small:24b",
+    "developer": "deepseek-coder-v2:16b",
+    "reviewer": "mistral-small:24b"
 }
 
 OLLAMA_URL = "http://localhost:11434/api/generate"

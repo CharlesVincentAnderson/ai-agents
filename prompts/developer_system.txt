@@ -42,7 +42,32 @@ Do NOT include:
 - comments outside JSON
 
 Your output MUST be parseable JSON.
-
-CRITICAL JSON RULE:
-- All newline characters inside JSON strings MUST be escaped as \\n
+CRITICAL JSON OUTPUT RULES:
 - Output must be valid JSON parsable by Python json.loads()
+- All newline characters inside JSON strings must be escaped as \\n
+- The entire response must be a single valid JSON object
+- Every "content" value must be a SINGLE JSON string
+- Inside "content", ALL newlines must be escaped as \\n
+- NEVER include literal newline characters inside a JSON string
+- NEVER switch from escaped newlines to raw newlines
+- Do NOT use markdown
+- Do NOT use code fences
+- Do NOT output raw code outside JSON
+
+VALID EXAMPLE:
+{
+  "task_id": 1,
+  "changes": [
+    {
+      "file": "app.py",
+      "content": "def hello():\\n    return \\"Hello\\""
+    }
+  ]
+}
+
+STRING ESCAPING RULES:
+- Inside JSON string values:
+  - Backslashes must be escaped as \\
+  - Newlines must be escaped as \\n
+- Prefer single quotes in generated Python code whenever possible
+- NEVER output unescaped double quotes inside the "content" field
