@@ -1,3 +1,6 @@
-workspace/project/
 logs/
 tasks/
+__pycache__/
+*.pyc
+.pytest_cache/
+workspace/temp/
