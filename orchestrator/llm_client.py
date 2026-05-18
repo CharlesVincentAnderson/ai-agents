@@ -6,6 +6,24 @@ import time
 from orchestrator.logger import log
 
 
+def deep_unescape(obj):
+    """
+    Recursively convert JSON-escaped sequences into real characters.
+    This fixes '\\n' -> '\n' inside patch strings.
+    """
+
+    if isinstance(obj, str):
+        return obj.encode("utf-8").decode("unicode_escape")
+
+    if isinstance(obj, list):
+        return [deep_unescape(x) for x in obj]
+
+    if isinstance(obj, dict):
+        return {k: deep_unescape(v) for k, v in obj.items()}
+
+    return obj
+
+
 def repair_multiline_strings(text):
     pattern = r'"content":\s*"([\s\S]*?)"(?=\s*[\},])'
 
@@ -35,7 +53,8 @@ def extract_json(text):
     text = repair_multiline_strings(text)
 
     try:
-        return json.loads(text)
+        parsed = json.loads(text)
+        return deep_unescape(parsed)
     except Exception:
         pass
 
@@ -43,9 +62,11 @@ def extract_json(text):
 
     if object_match:
         candidate = repair_multiline_strings(object_match.group(0))
-        return json.loads(candidate)
+        parsed = json.loads(candidate)
+        return deep_unescape(parsed)
 
     raise ValueError(f"Failed to parse JSON:\n{text}")
+
 
 def stop_ollama_models():
     subprocess.run(
@@ -54,6 +75,7 @@ def stop_ollama_models():
         stderr=subprocess.DEVNULL
     )
     time.sleep(5)
+
 
 def call_model(model, system_prompt, user_prompt):
     stop_ollama_models()

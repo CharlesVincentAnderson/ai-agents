@@ -11,105 +11,49 @@ Output format:
   "patches": [
     {
       "file": "relative/path",
-      "diff": "UNIFIED DIFF PATCH"
+      "diff": "UNIFIED GIT DIFF"
     }
   ]
 }
 
 STRICT RULES:
-- Output ONLY unified diffs
-- Do NOT output full file contents
-- Patches must apply cleanly using git apply
-- Modify ONLY files listed in the task
-- Preserve unchanged code
-- Keep implementations minimal and correct
-- Generate the SMALLEST reasonable patch
+- Output ONLY valid JSON
+- Do NOT output explanations
+- Do NOT output markdown or code fences
+- Do NOT output raw files
 
-DIFF RULES:
+PATCH RULES (IMPORTANT):
+- Patches MUST be valid git unified diffs
 - Every patch MUST begin with:
-  --- a/file.py
-  +++ b/file.py
-
-- Use standard unified diff format
-- Include proper @@ hunk markers
-- Do NOT omit context lines
+  diff --git a/<file> b/<file>
+- Modified files MUST include:
+  --- a/<file>
+  +++ b/<file>
+- New files MUST include:
+  new file mode 100644
+  --- /dev/null
+  +++ b/<file>
+- Include proper @@ hunk headers
+- Include sufficient context lines for git apply to succeed
 - Do NOT invent line numbers
 
-CRITICAL BEHAVIOR RULES:
-- If a function must return a value, DO NOT use print()
-- Do NOT call functions unless explicitly required
-- Do NOT introduce new directories
-- Do NOT modify test files unless explicitly allowed
-- If a previous patch failed to apply, correct ONLY the patch formatting problem.  Do not redesign the solution.
+CRITICAL RULE:
+- The "diff" field must contain RAW NEWLINES
+- Do NOT escape newlines as "\\n"
+- Do NOT JSON-escape the diff content manually
+- The JSON serializer will handle escaping automatically
 
-PATCH SIZE RULES:
-- Prefer patches under 200 lines
-- Do NOT rewrite entire files unless absolutely necessary
+BEHAVIOR RULES:
+- Modify ONLY files listed in the task
+- Keep changes minimal
+- Do NOT rewrite full files unless required
+- Preserve unrelated code exactly
+- If fixing a previous failure, ONLY fix patch formatting
 
-FAIL-SAFE RULE:
-If the task is unclear or impossible, return:
+FAIL SAFE:
+If task is impossible:
 
 {
   "task_id": number,
   "patches": []
 }
-
-OUTPUT RULES:
-- Return ONLY valid JSON
-- Do NOT include markdown
-- Do NOT include explanations
-- Do NOT include code fences
-- The response must be parseable by Python json.loads()
-
-STRING ESCAPING RULES:
-- Escape all newlines inside JSON strings as \\n
-- Escape backslashes as \\\\
-- Escape double quotes inside JSON strings
-
-VALID EXAMPLE:
-
-{
-  "task_id": 1,
-  "patches": [
-    {
-      "file": "app.py",
-      "diff": "--- a/app.py\\n+++ b/app.py\\n@@ -1,2 +1,5 @@\\n def hello():\\n-    pass\\n+    return 'Hello'\\n"
-    }
-  ]
-}
-
-PATCH FORMAT RULES:
-- Patches MUST be valid git unified diffs
-- Every patch MUST begin with:
-  diff --git a/<file> b/<file>
-- New files MUST use:
-  new file mode 100644
-  --- /dev/null
-  +++ b/<file>
-- Modified files MUST use:
-  --- a/<file>
-  +++ b/<file>
-- Include proper @@ hunk headers
-- Every diff line must end with a newline
-- The patch must be directly usable by:
-  git apply patch.diff
-
-VALID NEW FILE PATCH EXAMPLE:
-
-diff --git a/app.py b/app.py
-new file mode 100644
---- /dev/null
-+++ b/app.py
-@@ -0,0 +1,2 @@
-+def hello():
-+    return "Hello world!"
-
-VALID MODIFIED FILE PATCH EXAMPLE:
-
-diff --git a/app.py b/app.py
---- a/app.py
-+++ b/app.py
-@@ -1,2 +1,2 @@
- def hello():
--    pass
-+    return "Hello world!"

@@ -17,7 +17,12 @@ from orchestrator.patcher import apply_patch
 
 from orchestrator.config import MAX_RETRIES
 
+
 WORKSPACE = "workspace/project"
+
+
+def normalize_patch(diff: str) -> str:
+    return diff.encode("utf-8").decode("unicode_escape")
 
 
 def git_commit(message):
@@ -66,11 +71,8 @@ def validate_patches(task, patches):
         if diff.count("\n") > 300:
             raise Exception("Patch too large")
 
-        if not diff.startswith("diff --git"):
-            raise Exception("Patch missing git diff header")
-
-        if "+++ " not in diff:
-            raise Exception("Patch missing target file header")
+        if not ("--- " in diff and "+++" in diff):
+            raise Exception("Patch missing diff headers")
 
         if "@@" not in diff:
             raise Exception("Patch missing hunk markers")
@@ -95,7 +97,6 @@ def run_pipeline(idea):
     ensure_clean_workspace()
 
     plan = generate_plan(idea)
-
     tasks = plan.get("tasks", [])
 
     for task in tasks:
@@ -121,7 +122,6 @@ def run_pipeline(idea):
                     task=task,
                     file_context=file_context
                 )
-
             except Exception as e:
                 log(f"Developer failed: {e}")
                 continue
@@ -130,17 +130,13 @@ def run_pipeline(idea):
 
             try:
                 validate_patches(task, patches)
-
             except Exception as e:
-                log(f"Patch validation failed: {e}")
-
                 task["history"].append({
                     "attempt": attempts,
                     "error": str(e)
                 })
 
                 task["feedback"] = [str(e)]
-
                 continue
 
             temp_workspace = create_temp_workspace(WORKSPACE)
@@ -149,25 +145,18 @@ def run_pipeline(idea):
                 for patch in patches:
                     apply_patch(
                         temp_workspace,
-                        patch["diff"]
+                        normalize_patch(patch["diff"])
                     )
 
                 test_result = run_tests(temp_workspace)
 
                 if not test_result["passed"]:
-                    log("Tests failed")
-
-                    task["latest_test_output"] = test_result["output"]
-
                     task["history"].append({
                         "attempt": attempts,
                         "test_output": test_result["output"]
                     })
 
-                    task["feedback"] = [
-                        test_result["output"]
-                    ]
-
+                    task["feedback"] = [test_result["output"]]
                     continue
 
                 updated_context = load_file_context(
@@ -183,20 +172,12 @@ def run_pipeline(idea):
                 )
 
                 if not review_result.get("approved"):
-                    issues = review_result.get(
-                        "blocking_issues",
-                        []
-                    )
-
-                    log(f"Reviewer rejected: {issues}")
-
                     task["history"].append({
                         "attempt": attempts,
-                        "reviewer_feedback": issues
+                        "reviewer_feedback": review_result.get("blocking_issues", [])
                     })
 
-                    task["feedback"] = issues
-
+                    task["feedback"] = review_result.get("blocking_issues", [])
                     continue
 
                 ensure_clean_workspace()
@@ -204,26 +185,13 @@ def run_pipeline(idea):
                 for patch in patches:
                     apply_patch(
                         WORKSPACE,
-                        patch["diff"]
+                        normalize_patch(patch["diff"])
                     )
 
-                git_commit(
-                    f"Task {task['id']}: {task['title']}"
-                )
+                git_commit(f"Task {task['id']}: {task['title']}")
 
                 approved = True
-
                 log("Task completed")
-
-            except Exception as e:
-                log(f"Pipeline failure: {e}")
-
-                task["history"].append({
-                    "attempt": attempts,
-                    "pipeline_error": str(e)
-                })
-
-                task["feedback"] = [str(e)]
 
             finally:
                 cleanup_temp_workspace(temp_workspace)
