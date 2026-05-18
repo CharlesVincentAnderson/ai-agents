@@ -40,6 +40,7 @@ CRITICAL BEHAVIOR RULES:
 - Do NOT call functions unless explicitly required
 - Do NOT introduce new directories
 - Do NOT modify test files unless explicitly allowed
+- If a previous patch failed to apply, correct ONLY the patch formatting problem.  Do not redesign the solution.
 
 PATCH SIZE RULES:
 - Prefer patches under 200 lines
@@ -76,3 +77,39 @@ VALID EXAMPLE:
     }
   ]
 }
+
+PATCH FORMAT RULES:
+- Patches MUST be valid git unified diffs
+- Every patch MUST begin with:
+  diff --git a/<file> b/<file>
+- New files MUST use:
+  new file mode 100644
+  --- /dev/null
+  +++ b/<file>
+- Modified files MUST use:
+  --- a/<file>
+  +++ b/<file>
+- Include proper @@ hunk headers
+- Every diff line must end with a newline
+- The patch must be directly usable by:
+  git apply patch.diff
+
+VALID NEW FILE PATCH EXAMPLE:
+
+diff --git a/app.py b/app.py
+new file mode 100644
+--- /dev/null
++++ b/app.py
+@@ -0,0 +1,2 @@
++def hello():
++    return "Hello world!"
+
+VALID MODIFIED FILE PATCH EXAMPLE:
+
+diff --git a/app.py b/app.py
+--- a/app.py
++++ b/app.py
+@@ -1,2 +1,2 @@
+ def hello():
+-    pass
++    return "Hello world!"

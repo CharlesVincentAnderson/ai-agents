@@ -66,8 +66,8 @@ def validate_patches(task, patches):
         if diff.count("\n") > 300:
             raise Exception("Patch too large")
 
-        if not diff.startswith("--- "):
-            raise Exception("Patch missing unified diff header")
+        if not diff.startswith("diff --git"):
+            raise Exception("Patch missing git diff header")
 
         if "+++ " not in diff:
             raise Exception("Patch missing target file header")

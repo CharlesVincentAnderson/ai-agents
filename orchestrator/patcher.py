@@ -13,7 +13,7 @@ def apply_patch(workspace, diff_text):
 
     try:
         result = subprocess.run(
-            ["git", "apply", "--check", patch_file],
+            ["git", "apply", "--check", "--allow-empty", patch_file],
             cwd=workspace,
             capture_output=True,
             text=True,
