@@ -57,3 +57,12 @@ If task is impossible:
   "task_id": number,
   "patches": []
 }
+
+If your previous patch was rejected or failed to apply:
+- Do NOT output empty patches
+- Always output a corrected full patch
+- Assume the previous attempt was partially incorrect and fix it
+
+You MUST always output at least one patch if any change is required.
+Never return an empty patches array unless the task is impossible.
+

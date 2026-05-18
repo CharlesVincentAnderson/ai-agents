@@ -48,35 +48,40 @@ def git_commit(message):
     if result.returncode != 0:
         raise Exception(result.stderr)
 
-
 def validate_patches(task, patches):
-    if not patches:
-        raise Exception("Developer returned no patches")
+    if not isinstance(patches, list) or len(patches) == 0:
+        raise Exception("No patches returned by developer")
 
-    allowed_files = set(task["files"])
+    allowed_files = set(task.get("files", []))
 
-    for patch in patches:
+    for i, patch in enumerate(patches):
+        if not isinstance(patch, dict):
+            raise Exception(f"Patch {i} is not an object")
+
         file_path = patch.get("file")
         diff = patch.get("diff")
 
         if not file_path:
-            raise Exception("Patch missing file")
+            raise Exception(f"Patch {i} missing 'file'")
 
         if file_path not in allowed_files:
             raise Exception(f"Unauthorized file change: {file_path}")
 
         if not diff or not isinstance(diff, str):
-            raise Exception("Invalid diff")
+            raise Exception(f"Patch {file_path} missing or invalid 'diff'")
 
-        if diff.count("\n") > 300:
-            raise Exception("Patch too large")
+        if len(diff) > 50_000:
+            raise Exception(f"Patch too large: {file_path}")
 
-        if not ("--- " in diff and "+++" in diff):
-            raise Exception("Patch missing diff headers")
+        # Required unified diff markers (loose but effective sanity check)
+        if "--- " not in diff:
+            raise Exception(f"Patch missing source header: {file_path}")
+
+        if "+++ " not in diff:
+            raise Exception(f"Patch missing target header: {file_path}")
 
         if "@@" not in diff:
-            raise Exception("Patch missing hunk markers")
-
+            raise Exception(f"Patch missing hunk markers: {file_path}")
 
 def ensure_clean_workspace():
     status = subprocess.run(
