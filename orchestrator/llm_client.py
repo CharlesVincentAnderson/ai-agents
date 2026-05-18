@@ -1,6 +1,7 @@
 import subprocess
 import json
 import re
+import time
 
 from orchestrator.logger import log
 
@@ -52,6 +53,7 @@ def stop_ollama_models():
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
+    time.sleep(5)
 
 def call_model(model, system_prompt, user_prompt):
     stop_ollama_models()

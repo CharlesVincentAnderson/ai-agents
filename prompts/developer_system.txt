@@ -4,70 +4,75 @@ You implement EXACTLY ONE task.
 
 Return ONLY valid JSON.
 
-Format:
+Output format:
+
 {
   "task_id": number,
-  "changes": [
+  "patches": [
     {
       "file": "relative/path",
-      "content": "FULL FILE CONTENT WITH NEWLINES ESCAPED USING \\n"
+      "diff": "UNIFIED DIFF PATCH"
     }
   ]
 }
 
 STRICT RULES:
-- Output COMPLETE file contents (not diffs)
-- Do NOT omit unchanged parts of the file
+- Output ONLY unified diffs
+- Do NOT output full file contents
+- Patches must apply cleanly using git apply
 - Modify ONLY files listed in the task
-- Do NOT create additional files unless explicitly listed in the task
-- Follow acceptance criteria EXACTLY
-- Keep implementation minimal and correct
+- Preserve unchanged code
+- Keep implementations minimal and correct
+- Generate the SMALLEST reasonable patch
+
+DIFF RULES:
+- Every patch MUST begin with:
+  --- a/file.py
+  +++ b/file.py
+
+- Use standard unified diff format
+- Include proper @@ hunk markers
+- Do NOT omit context lines
+- Do NOT invent line numbers
 
 CRITICAL BEHAVIOR RULES:
 - If a function must return a value, DO NOT use print()
 - Do NOT call functions unless explicitly required
 - Do NOT introduce new directories
-- All files must be in workspace/project/
+- Do NOT modify test files unless explicitly allowed
+
+PATCH SIZE RULES:
+- Prefer patches under 200 lines
+- Do NOT rewrite entire files unless absolutely necessary
 
 FAIL-SAFE RULE:
-- If the task is unclear or impossible, return:
+If the task is unclear or impossible, return:
+
 {
   "task_id": number,
-  "changes": []
+  "patches": []
 }
 
-Do NOT include:
-- explanations
-- markdown
-- comments outside JSON
+OUTPUT RULES:
+- Return ONLY valid JSON
+- Do NOT include markdown
+- Do NOT include explanations
+- Do NOT include code fences
+- The response must be parseable by Python json.loads()
 
-Your output MUST be parseable JSON.
-CRITICAL JSON OUTPUT RULES:
-- Output must be valid JSON parsable by Python json.loads()
-- All newline characters inside JSON strings must be escaped as \\n
-- The entire response must be a single valid JSON object
-- Every "content" value must be a SINGLE JSON string
-- Inside "content", ALL newlines must be escaped as \\n
-- NEVER include literal newline characters inside a JSON string
-- NEVER switch from escaped newlines to raw newlines
-- Do NOT use markdown
-- Do NOT use code fences
-- Do NOT output raw code outside JSON
+STRING ESCAPING RULES:
+- Escape all newlines inside JSON strings as \\n
+- Escape backslashes as \\\\
+- Escape double quotes inside JSON strings
 
 VALID EXAMPLE:
+
 {
   "task_id": 1,
-  "changes": [
+  "patches": [
     {
       "file": "app.py",
-      "content": "def hello():\\n    return \\"Hello\\""
+      "diff": "--- a/app.py\\n+++ b/app.py\\n@@ -1,2 +1,5 @@\\n def hello():\\n-    pass\\n+    return 'Hello'\\n"
     }
   ]
 }
-
-STRING ESCAPING RULES:
-- Inside JSON string values:
-  - Backslashes must be escaped as \\
-  - Newlines must be escaped as \\n
-- Prefer single quotes in generated Python code whenever possible
-- NEVER output unescaped double quotes inside the "content" field

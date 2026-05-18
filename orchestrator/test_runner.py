@@ -1,16 +1,15 @@
 import subprocess
-from orchestrator.logger import log
-
-WORKSPACE = "workspace/project"
 
 
-def run_tests():
+def run_tests(workspace):
     try:
         result = subprocess.run(
             ["python", "-m", "pytest", "-q"],
-            cwd=WORKSPACE,
+            cwd=workspace,
             capture_output=True,
-            text=True
+            text=True,
+            check=False,
+            timeout=120
         )
 
         return {

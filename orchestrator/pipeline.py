@@ -1,6 +1,4 @@
-import os
 import subprocess
-import time
 
 from agents.manager import generate_plan
 from agents.developer import implement
@@ -8,212 +6,229 @@ from agents.reviewer import review
 
 from orchestrator.test_runner import run_tests
 from orchestrator.logger import log
+
+from orchestrator.workspace_utils import (
+    create_temp_workspace,
+    cleanup_temp_workspace
+)
+
+from orchestrator.context_loader import load_file_context
+from orchestrator.patcher import apply_patch
+
 from orchestrator.config import MAX_RETRIES
 
 WORKSPACE = "workspace/project"
 
 
-def normalize_content(content):
-    if not isinstance(content, str):
-        return content
-
-    try:
-        return content.encode("utf-8").decode("unicode_escape")
-    except Exception:
-        return content
-
-def resolve_safe_path(base, path):
-    joined = os.path.join(base, path)
-    real = os.path.realpath(joined)
-
-    base_real = os.path.realpath(base)
-
-    if not real.startswith(base_real):
-        raise Exception(f"Blocked path escape: {path}")
-
-    return real
-
-
 def git_commit(message):
-    subprocess.run(["git", "add", "."], cwd=WORKSPACE)
-    subprocess.run(["git", "commit", "-m", message], cwd=WORKSPACE)
+    result = subprocess.run(
+        ["git", "add", "."],
+        cwd=WORKSPACE,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+
+    if result.returncode != 0:
+        raise Exception(result.stderr)
+
+    result = subprocess.run(
+        ["git", "commit", "-m", message],
+        cwd=WORKSPACE,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+
+    if result.returncode != 0:
+        raise Exception(result.stderr)
 
 
-# ---------------------------
-# VALIDATION
-# ---------------------------
+def validate_patches(task, patches):
+    if not patches:
+        raise Exception("Developer returned no patches")
 
-def validate_plan(tasks):
-    if not isinstance(tasks, list) or not tasks:
-        raise Exception("Manager returned invalid or empty task list")
+    allowed_files = set(task["files"])
 
-    for task in tasks:
-        files = task.get("files", [])
-        criteria = task.get("acceptance_criteria", [])
-        desc = task.get("description", "")
+    for patch in patches:
+        file_path = patch.get("file")
+        diff = patch.get("diff")
 
-        combined = " ".join(criteria) + " " + desc
+        if not file_path:
+            raise Exception("Patch missing file")
 
-        # enforce exact file
-        for f in files:
-            if f != "app.py":
-                raise Exception(f"Manager violated file constraint: {f}")
+        if file_path not in allowed_files:
+            raise Exception(f"Unauthorized file change: {file_path}")
 
-        # enforce no print behavior
-        if "print" in combined.lower():
-            raise Exception("Manager introduced print behavior")
+        if not diff or not isinstance(diff, str):
+            raise Exception("Invalid diff")
 
-def validate_change(task, change):
-    file_path = change.get("file")
-    content = change.get("content")
+        if diff.count("\n") > 300:
+            raise Exception("Patch too large")
 
-    if file_path == "workspace/project/app.py":
-        file_path = "app.py"
-        change["file"] = "app.py"
+        if not diff.startswith("--- "):
+            raise Exception("Patch missing unified diff header")
 
-    if not file_path or not isinstance(file_path, str):
-        raise Exception("Invalid file path in change")
+        if "+++ " not in diff:
+            raise Exception("Patch missing target file header")
 
-    if file_path not in task["files"]:
-        raise Exception(f"Unauthorized file change: {file_path}")
+        if "@@" not in diff:
+            raise Exception("Patch missing hunk markers")
 
-    if not isinstance(content, str) or not content.strip():
-        raise Exception(f"Empty or invalid content for {file_path}")
 
-    # convert escaped newlines into real newlines
-    content = normalize_content(content)
-    change["content"] = content
+def ensure_clean_workspace():
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=WORKSPACE,
+        capture_output=True,
+        text=True,
+        check=False
+    )
 
-# ---------------------------
-# FILE WRITES
-# ---------------------------
+    if status.stdout.strip():
+        raise Exception("Workspace is dirty")
 
-def apply_changes(changes):
-    for change in changes:
-        file_path = resolve_safe_path(WORKSPACE, change["file"])
-
-        parent = os.path.dirname(file_path)
-
-        if parent:
-            os.makedirs(parent, exist_ok=True)
-
-        content = change["content"].encode("utf-8").decode("unicode_escape")
-
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
-
-# ---------------------------
-# PIPELINE
-# ---------------------------
 
 def run_pipeline(idea):
     log("Starting pipeline")
 
-    # ---- PLAN ----
+    ensure_clean_workspace()
+
     plan = generate_plan(idea)
+
     tasks = plan.get("tasks", [])
 
-    validate_plan(tasks)
-
-    log(f"Generated plan with {len(tasks)} tasks")
-
-    # ---- TASK LOOP ----
     for task in tasks:
-        log(f"\n=== TASK {task['id']}: {task['title']} ===")
+        log(f"Running task {task['id']}")
 
         approved = False
         attempts = 0
 
+        task.setdefault("history", [])
+
         while not approved and attempts < MAX_RETRIES:
             attempts += 1
 
-            log(f"Attempt {attempts} - Developer running")
+            log(f"Attempt {attempts}")
 
-            # ---- IMPLEMENT ----
+            file_context = load_file_context(
+                WORKSPACE,
+                task["files"]
+            )
+
             try:
-                result = implement(task)
+                result = implement(
+                    task=task,
+                    file_context=file_context
+                )
+
             except Exception as e:
                 log(f"Developer failed: {e}")
-                time.sleep(5)
                 continue
 
-            # ---- VALIDATE OUTPUT ----
-            log("Validating changes")
+            patches = result.get("patches", [])
 
             try:
-                changes = result.get("changes")
-
-                if not isinstance(changes, list) or not changes:
-                    raise Exception("Developer returned no valid changes")
-
-                for change in changes:
-                    validate_change(task, change)
+                validate_patches(task, patches)
 
             except Exception as e:
-                log(f"Validation failed: {e}")
+                log(f"Patch validation failed: {e}")
+
+                task["history"].append({
+                    "attempt": attempts,
+                    "error": str(e)
+                })
+
                 task["feedback"] = [str(e)]
-                time.sleep(5)
+
                 continue
 
-            # ---- REVIEW ----
-            log("Reviewing changes")
+            temp_workspace = create_temp_workspace(WORKSPACE)
 
             try:
-                review_result = review(task, result)
+                for patch in patches:
+                    apply_patch(
+                        temp_workspace,
+                        patch["diff"]
+                    )
+
+                test_result = run_tests(temp_workspace)
+
+                if not test_result["passed"]:
+                    log("Tests failed")
+
+                    task["latest_test_output"] = test_result["output"]
+
+                    task["history"].append({
+                        "attempt": attempts,
+                        "test_output": test_result["output"]
+                    })
+
+                    task["feedback"] = [
+                        test_result["output"]
+                    ]
+
+                    continue
+
+                updated_context = load_file_context(
+                    temp_workspace,
+                    task["files"]
+                )
+
+                review_result = review(
+                    task=task,
+                    patches=patches,
+                    test_output=test_result["output"],
+                    file_context=updated_context
+                )
+
+                if not review_result.get("approved"):
+                    issues = review_result.get(
+                        "blocking_issues",
+                        []
+                    )
+
+                    log(f"Reviewer rejected: {issues}")
+
+                    task["history"].append({
+                        "attempt": attempts,
+                        "reviewer_feedback": issues
+                    })
+
+                    task["feedback"] = issues
+
+                    continue
+
+                ensure_clean_workspace()
+
+                for patch in patches:
+                    apply_patch(
+                        WORKSPACE,
+                        patch["diff"]
+                    )
+
+                git_commit(
+                    f"Task {task['id']}: {task['title']}"
+                )
+
+                approved = True
+
+                log("Task completed")
+
             except Exception as e:
-                log(f"Reviewer failed: {e}")
-                time.sleep(5)
-                continue
+                log(f"Pipeline failure: {e}")
 
-            if not review_result.get("approved"):
-                issues = review_result.get("blocking_issues", [])
+                task["history"].append({
+                    "attempt": attempts,
+                    "pipeline_error": str(e)
+                })
 
-                log(f"Rejected: {issues}")
-
-                task["feedback"] = issues
-
-                time.sleep(5)
-                continue
-
-            # ---- APPLY FILES ----
-            log("Applying changes")
-
-            try:
-                apply_changes(result["changes"])
-            except Exception as e:
-                log(f"Apply failed: {e}")
                 task["feedback"] = [str(e)]
-                time.sleep(5)
-                continue
 
-            # ---- TEST ----
-            log("Running tests")
-
-            test_result = run_tests()
-
-            if not test_result["passed"]:
-                log("Tests failed")
-                log(test_result["output"])
-
-                task["feedback"] = [test_result["output"]]
-
-                time.sleep(5)
-                continue
-
-            # ---- COMMIT ----
-            log("Committing changes")
-
-            try:
-                git_commit(f"Task {task['id']}: {task['title']}")
-            except Exception as e:
-                log(f"Git commit failed: {e}")
-
-            approved = True
-
-            log("Task completed")
+            finally:
+                cleanup_temp_workspace(temp_workspace)
 
         if not approved:
-            log(f"Task {task['id']} failed after {MAX_RETRIES} attempts")
-            break
+            log(f"Task failed after {MAX_RETRIES}")
 
     log("Pipeline finished")
