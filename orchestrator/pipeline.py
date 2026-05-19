@@ -21,10 +21,6 @@ from orchestrator.config import MAX_RETRIES
 WORKSPACE = "workspace/project"
 
 
-def normalize_patch(diff: str) -> str:
-    return diff.encode("utf-8").decode("unicode_escape")
-
-
 def git_commit(message):
     result = subprocess.run(
         ["git", "add", "."],
@@ -48,6 +44,7 @@ def git_commit(message):
     if result.returncode != 0:
         raise Exception(result.stderr)
 
+
 def validate_patches(task, patches):
     if not isinstance(patches, list) or len(patches) == 0:
         raise Exception("No patches returned by developer")
@@ -68,20 +65,33 @@ def validate_patches(task, patches):
             raise Exception(f"Unauthorized file change: {file_path}")
 
         if not diff or not isinstance(diff, str):
-            raise Exception(f"Patch {file_path} missing or invalid 'diff'")
+            raise Exception(
+                f"Patch {file_path} missing or invalid 'diff'"
+            )
 
         if len(diff) > 50_000:
             raise Exception(f"Patch too large: {file_path}")
 
-        # Required unified diff markers (loose but effective sanity check)
+        if not diff.startswith("diff --git "):
+            raise Exception(
+                f"Patch missing git diff header: {file_path}"
+            )
+
         if "--- " not in diff:
-            raise Exception(f"Patch missing source header: {file_path}")
+            raise Exception(
+                f"Patch missing source header: {file_path}"
+            )
 
         if "+++ " not in diff:
-            raise Exception(f"Patch missing target header: {file_path}")
+            raise Exception(
+                f"Patch missing target header: {file_path}"
+            )
 
         if "@@" not in diff:
-            raise Exception(f"Patch missing hunk markers: {file_path}")
+            raise Exception(
+                f"Patch missing hunk markers: {file_path}"
+            )
+
 
 def ensure_clean_workspace():
     status = subprocess.run(
@@ -102,6 +112,7 @@ def run_pipeline(idea):
     ensure_clean_workspace()
 
     plan = generate_plan(idea)
+
     tasks = plan.get("tasks", [])
 
     for task in tasks:
@@ -127,21 +138,34 @@ def run_pipeline(idea):
                     task=task,
                     file_context=file_context
                 )
+
             except Exception as e:
                 log(f"Developer failed: {e}")
+
+                task["history"].append({
+                    "attempt": attempts,
+                    "developer_error": str(e)
+                })
+
+                task["feedback"] = [str(e)]
+
                 continue
 
             patches = result.get("patches", [])
 
             try:
                 validate_patches(task, patches)
+
             except Exception as e:
+                log(f"Patch validation failed: {e}")
+
                 task["history"].append({
                     "attempt": attempts,
-                    "error": str(e)
+                    "validation_error": str(e)
                 })
 
                 task["feedback"] = [str(e)]
+
                 continue
 
             temp_workspace = create_temp_workspace(WORKSPACE)
@@ -150,25 +174,64 @@ def run_pipeline(idea):
                 for patch in patches:
                     apply_patch(
                         temp_workspace,
-                        normalize_patch(patch["diff"])
+                        patch["diff"]
                     )
 
+            except Exception as e:
+                log(f"Patch apply failed: {e}")
+
+                task["history"].append({
+                    "attempt": attempts,
+                    "patch_apply_error": str(e)
+                })
+
+                task["feedback"] = [
+                    f"Patch failed to apply:\n{e}"
+                ]
+
+                cleanup_temp_workspace(temp_workspace)
+
+                continue
+
+            try:
                 test_result = run_tests(temp_workspace)
 
-                if not test_result["passed"]:
-                    task["history"].append({
-                        "attempt": attempts,
-                        "test_output": test_result["output"]
-                    })
+            except Exception as e:
+                log(f"Test runner failed: {e}")
 
-                    task["feedback"] = [test_result["output"]]
-                    continue
+                task["history"].append({
+                    "attempt": attempts,
+                    "test_runner_error": str(e)
+                })
 
-                updated_context = load_file_context(
-                    temp_workspace,
-                    task["files"]
-                )
+                task["feedback"] = [str(e)]
 
+                cleanup_temp_workspace(temp_workspace)
+
+                continue
+
+            if not test_result["passed"]:
+                log("Tests failed")
+
+                task["history"].append({
+                    "attempt": attempts,
+                    "test_output": test_result["output"]
+                })
+
+                task["feedback"] = [
+                    test_result["output"]
+                ]
+
+                cleanup_temp_workspace(temp_workspace)
+
+                continue
+
+            updated_context = load_file_context(
+                temp_workspace,
+                task["files"]
+            )
+
+            try:
                 review_result = review(
                     task=task,
                     patches=patches,
@@ -176,32 +239,75 @@ def run_pipeline(idea):
                     file_context=updated_context
                 )
 
-                if not review_result.get("approved"):
-                    task["history"].append({
-                        "attempt": attempts,
-                        "reviewer_feedback": review_result.get("blocking_issues", [])
-                    })
+            except Exception as e:
+                log(f"Reviewer failed: {e}")
 
-                    task["feedback"] = review_result.get("blocking_issues", [])
-                    continue
+                task["history"].append({
+                    "attempt": attempts,
+                    "reviewer_error": str(e)
+                })
 
+                task["feedback"] = [str(e)]
+
+                cleanup_temp_workspace(temp_workspace)
+
+                continue
+
+            if not review_result.get("approved"):
+                issues = review_result.get(
+                    "blocking_issues",
+                    []
+                )
+
+                log(f"Reviewer rejected: {issues}")
+
+                task["history"].append({
+                    "attempt": attempts,
+                    "reviewer_feedback": issues
+                })
+
+                task["feedback"] = issues
+
+                cleanup_temp_workspace(temp_workspace)
+
+                continue
+
+            try:
                 ensure_clean_workspace()
 
                 for patch in patches:
                     apply_patch(
                         WORKSPACE,
-                        normalize_patch(patch["diff"])
+                        patch["diff"]
                     )
 
-                git_commit(f"Task {task['id']}: {task['title']}")
+                git_commit(
+                    f"Task {task['id']}: {task['title']}"
+                )
 
-                approved = True
-                log("Task completed")
+            except Exception as e:
+                log(f"Final apply failed: {e}")
 
-            finally:
+                task["history"].append({
+                    "attempt": attempts,
+                    "final_apply_error": str(e)
+                })
+
+                task["feedback"] = [str(e)]
+
                 cleanup_temp_workspace(temp_workspace)
 
+                continue
+
+            cleanup_temp_workspace(temp_workspace)
+
+            approved = True
+
+            log("Task completed")
+
         if not approved:
-            log(f"Task failed after {MAX_RETRIES}")
+            log(
+                f"Task failed after {MAX_RETRIES} attempts"
+            )
 
     log("Pipeline finished")
