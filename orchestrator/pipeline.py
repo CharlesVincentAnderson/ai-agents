@@ -20,6 +20,14 @@ from orchestrator.config import MAX_RETRIES
 
 WORKSPACE = "workspace/project"
 
+def normalize_patch(diff: str) -> str:
+    diff = diff.encode("utf-8").decode("unicode_escape")
+
+    # git apply expects newline at EOF
+    if not diff.endswith("\n"):
+        diff += "\n"
+
+    return diff
 
 def git_commit(message):
     result = subprocess.run(
@@ -58,6 +66,10 @@ def validate_patches(task, patches):
         file_path = patch.get("file")
         diff = patch.get("diff")
 
+        if isinstance(diff, str):
+            diff = normalize_patch(diff)
+            patch["diff"] = diff
+
         if not file_path:
             raise Exception(f"Patch {i} missing 'file'")
 
@@ -78,18 +90,39 @@ def validate_patches(task, patches):
             )
 
         if "--- " not in diff:
-            raise Exception(
-                f"Patch missing source header: {file_path}"
-            )
+            raise Exception(f"Patch missing source header: {file_path}")
 
         if "+++ " not in diff:
-            raise Exception(
-                f"Patch missing target header: {file_path}"
-            )
+            raise Exception(f"Patch missing target header: {file_path}")
 
-        if "@@" not in diff:
+        if not diff.endswith("\n"):
+            raise Exception(f"Patch missing trailing newline: {file_path}")
+
+        if not any(
+            line.startswith("@@")
+            for line in diff.splitlines()
+        ):
             raise Exception(
                 f"Patch missing hunk markers: {file_path}"
+            )
+
+        lines = diff.splitlines()
+
+        has_change_lines = any(
+            line.startswith("+") or line.startswith("-")
+            for line in lines
+            if not line.startswith("+++")
+            and not line.startswith("---")
+        )
+
+        if not has_change_lines:
+            raise Exception(
+                f"Patch contains no actual changes: {file_path}"
+            )
+
+        if "\x00" in diff:
+            raise Exception(
+                f"Patch contains null bytes: {file_path}"
             )
 
 
@@ -112,7 +145,6 @@ def run_pipeline(idea):
     ensure_clean_workspace()
 
     plan = generate_plan(idea)
-
     tasks = plan.get("tasks", [])
 
     for task in tasks:
@@ -123,115 +155,44 @@ def run_pipeline(idea):
 
         task.setdefault("history", [])
 
-        while not approved and attempts < MAX_RETRIES:
-            attempts += 1
-
-            log(f"Attempt {attempts}")
-
-            file_context = load_file_context(
-                WORKSPACE,
-                task["files"]
-            )
+        while attempts < MAX_RETRIES and not approved:
+            temp_workspace = None
 
             try:
+                attempts += 1
+                log(f"Attempt {attempts}")
+
+                file_context = load_file_context(
+                    WORKSPACE,
+                    task["files"]
+                )
+
                 result = implement(
                     task=task,
                     file_context=file_context
                 )
 
-            except Exception as e:
-                log(f"Developer failed: {e}")
-
-                task["history"].append({
-                    "attempt": attempts,
-                    "developer_error": str(e)
-                })
-
-                task["feedback"] = [str(e)]
-
-                continue
-
-            patches = result.get("patches", [])
-
-            try:
+                patches = result.get("patches", [])
                 validate_patches(task, patches)
 
-            except Exception as e:
-                log(f"Patch validation failed: {e}")
+                temp_workspace = create_temp_workspace(WORKSPACE)
 
-                task["history"].append({
-                    "attempt": attempts,
-                    "validation_error": str(e)
-                })
-
-                task["feedback"] = [str(e)]
-
-                continue
-
-            temp_workspace = create_temp_workspace(WORKSPACE)
-
-            try:
                 for patch in patches:
                     apply_patch(
                         temp_workspace,
                         patch["diff"]
                     )
 
-            except Exception as e:
-                log(f"Patch apply failed: {e}")
-
-                task["history"].append({
-                    "attempt": attempts,
-                    "patch_apply_error": str(e)
-                })
-
-                task["feedback"] = [
-                    f"Patch failed to apply:\n{e}"
-                ]
-
-                cleanup_temp_workspace(temp_workspace)
-
-                continue
-
-            try:
                 test_result = run_tests(temp_workspace)
 
-            except Exception as e:
-                log(f"Test runner failed: {e}")
+                if not test_result["passed"]:
+                    raise Exception(test_result["output"])
 
-                task["history"].append({
-                    "attempt": attempts,
-                    "test_runner_error": str(e)
-                })
+                updated_context = load_file_context(
+                    temp_workspace,
+                    task["files"]
+                )
 
-                task["feedback"] = [str(e)]
-
-                cleanup_temp_workspace(temp_workspace)
-
-                continue
-
-            if not test_result["passed"]:
-                log("Tests failed")
-
-                task["history"].append({
-                    "attempt": attempts,
-                    "test_output": test_result["output"]
-                })
-
-                task["feedback"] = [
-                    test_result["output"]
-                ]
-
-                cleanup_temp_workspace(temp_workspace)
-
-                continue
-
-            updated_context = load_file_context(
-                temp_workspace,
-                task["files"]
-            )
-
-            try:
                 review_result = review(
                     task=task,
                     patches=patches,
@@ -239,40 +200,12 @@ def run_pipeline(idea):
                     file_context=updated_context
                 )
 
-            except Exception as e:
-                log(f"Reviewer failed: {e}")
+                if not review_result.get("approved"):
+                    raise Exception(
+                        str(review_result.get("blocking_issues", []))
+                    )
 
-                task["history"].append({
-                    "attempt": attempts,
-                    "reviewer_error": str(e)
-                })
-
-                task["feedback"] = [str(e)]
-
-                cleanup_temp_workspace(temp_workspace)
-
-                continue
-
-            if not review_result.get("approved"):
-                issues = review_result.get(
-                    "blocking_issues",
-                    []
-                )
-
-                log(f"Reviewer rejected: {issues}")
-
-                task["history"].append({
-                    "attempt": attempts,
-                    "reviewer_feedback": issues
-                })
-
-                task["feedback"] = issues
-
-                cleanup_temp_workspace(temp_workspace)
-
-                continue
-
-            try:
+                # FINAL COMMIT PHASE (single source of truth)
                 ensure_clean_workspace()
 
                 for patch in patches:
@@ -281,33 +214,26 @@ def run_pipeline(idea):
                         patch["diff"]
                     )
 
-                git_commit(
-                    f"Task {task['id']}: {task['title']}"
-                )
+                git_commit(f"Task {task['id']}: {task['title']}")
+
+                approved = True
+                log("Task completed")
 
             except Exception as e:
-                log(f"Final apply failed: {e}")
+                log(f"Attempt failed: {e}")
 
                 task["history"].append({
                     "attempt": attempts,
-                    "final_apply_error": str(e)
+                    "error": str(e)
                 })
 
                 task["feedback"] = [str(e)]
 
-                cleanup_temp_workspace(temp_workspace)
-
-                continue
-
-            cleanup_temp_workspace(temp_workspace)
-
-            approved = True
-
-            log("Task completed")
+            finally:
+                if temp_workspace:
+                    cleanup_temp_workspace(temp_workspace)
 
         if not approved:
-            log(
-                f"Task failed after {MAX_RETRIES} attempts"
-            )
+            log(f"Task failed after {MAX_RETRIES} attempts")
 
     log("Pipeline finished")

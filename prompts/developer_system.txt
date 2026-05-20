@@ -31,7 +31,7 @@ PATCH RULES:
 NEW FILE RULES:
 - New files MUST include:
   new file mode 100644
-  index 0000000..<hash>
+  index 0000000..<hash> 100644
   --- /dev/null
   +++ b/<file>
 
@@ -42,30 +42,24 @@ MODIFIED FILE RULES:
 
 HUNK RULES:
 - ALL patches MUST contain valid @@ hunk headers
-- New file hunks should use:
-  @@ -0,0 +<start>,<count> @@
-- Modified file hunks MUST include real surrounding context
-- Hunk line counts MUST exactly match the number of changed lines
+- New file hunks MUST use:
+  @@ -0,0 +1,<count> @@
 
 LINE RULES:
 - Added lines MUST begin with +
 - Removed lines MUST begin with -
 - Context lines MUST begin with a single space
 
-PATCH QUALITY RULES:
-- Patches MUST apply cleanly using:
-  git apply
-- Preserve unrelated code exactly
-- Keep changes minimal
-- Do NOT rewrite entire files unless required
-- Modify ONLY files listed in the task
-
 JSON STRING RULES:
-- The diff field MUST contain escaped newlines as \\n
-- Escape all internal double quotes
-- Do NOT use raw multiline JSON strings
+- Escape newlines as \\n
+- Escape internal double quotes
+- The diff MUST end with a final trailing \\n
 
 BEHAVIOR RULES:
+- Modify ONLY files listed in the task
+- Keep changes minimal
+- Preserve unrelated code exactly
+
 - If fixing a previous failed patch:
   - Correct ONLY the formatting or patch issue
   - Do NOT redesign the solution unnecessarily
