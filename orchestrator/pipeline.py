@@ -147,6 +147,8 @@ def run_pipeline(idea):
 
                 for patch in patches:
                     apply_patch(temp_workspace, patch["diff"])
+                    log(f"TEMP WS FILES: {os.listdir(temp_workspace)}")
+                    log(f"LOOK FOR APP: {os.path.exists(os.path.join(temp_workspace, 'app.py'))}")
 
                 test_result = run_tests(temp_workspace)
 

@@ -1,27 +1,48 @@
 import os
 import shutil
 import tempfile
+import subprocess
+
+from orchestrator.logger import log
 
 
-def create_temp_workspace(source_workspace):
-    temp_root = os.path.join("workspace", "temp")
+TEMP_ROOT = os.path.join("workspace", "temp")
 
-    os.makedirs(temp_root, exist_ok=True)
 
-    temp_dir = tempfile.mkdtemp(dir=temp_root)
+def create_temp_workspace(source_workspace: str) -> str:
+    """
+    Creates a clean git clone of the source workspace.
+    This ensures:
+    - correct Python import structure
+    - correct file layout
+    - reproducible test environment
+    """
 
-    for item in os.listdir(source_workspace):
-        src = os.path.join(source_workspace, item)
-        dst = os.path.join(temp_dir, item)
+    os.makedirs(TEMP_ROOT, exist_ok=True)
 
-        if os.path.isdir(src):
-            shutil.copytree(src, dst)
-        else:
-            shutil.copy2(src, dst)
+    temp_dir = tempfile.mkdtemp(dir=TEMP_ROOT)
+
+    # Clone the repo instead of copying files
+    result = subprocess.run(
+        ["git", "clone", source_workspace, temp_dir],
+        capture_output=True,
+        text=True,
+        check=False
+    )
+
+    if result.returncode != 0:
+        raise Exception(f"Failed to clone workspace: {result.stderr}")
+
+    # Remove git history to isolate execution (optional but recommended)
+    git_dir = os.path.join(temp_dir, ".git")
+    if os.path.exists(git_dir):
+        shutil.rmtree(git_dir)
+
+    log(f"[workspace] created temp clone at {temp_dir}")
 
     return temp_dir
 
 
-def cleanup_temp_workspace(path):
+def cleanup_temp_workspace(path: str):
     if os.path.exists(path):
         shutil.rmtree(path)
