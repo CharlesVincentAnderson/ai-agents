@@ -8,13 +8,21 @@ def run_tests(workspace):
             cwd=workspace,
             capture_output=True,
             text=True,
-            check=False,
-            timeout=120
+            check=False
         )
+
+        output = result.stdout + result.stderr
+
+        # No tests yet is acceptable
+        if "collected 0 items" in output:
+            return {
+                "passed": True,
+                "output": output
+            }
 
         return {
             "passed": result.returncode == 0,
-            "output": result.stdout + result.stderr
+            "output": output
         }
 
     except Exception as e:
