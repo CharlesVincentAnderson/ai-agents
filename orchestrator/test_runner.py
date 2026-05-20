@@ -1,19 +1,26 @@
 import subprocess
+import sys
+import os
 
 
-def run_tests(workspace):
+def run_tests(workspace: str):
     try:
+        env = os.environ.copy()
+
+        # CRITICAL FIX: treat workspace as import root
+        env["PYTHONPATH"] = workspace
+
         result = subprocess.run(
-            ["python", "-m", "pytest", "-q"],
+            [sys.executable, "-m", "pytest", "-q"],
             cwd=workspace,
             capture_output=True,
             text=True,
+            env=env,
             check=False
         )
 
         output = result.stdout + result.stderr
 
-        # No tests yet is acceptable
         if "collected 0 items" in output:
             return {
                 "passed": True,

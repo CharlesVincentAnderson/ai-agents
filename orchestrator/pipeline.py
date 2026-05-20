@@ -20,41 +20,36 @@ from orchestrator.config import MAX_RETRIES
 
 WORKSPACE = "workspace/project"
 
+
 def normalize_patch(diff: str) -> str:
     diff = diff.encode("utf-8").decode("unicode_escape")
 
-    # git apply expects newline at EOF
     if not diff.endswith("\n"):
         diff += "\n"
 
     return diff
 
-def git_commit(message):
-    result = subprocess.run(
+
+def git_commit(message: str):
+    subprocess.run(
         ["git", "add", "."],
         cwd=WORKSPACE,
         capture_output=True,
         text=True,
-        check=False
+        check=True
     )
 
-    if result.returncode != 0:
-        raise Exception(result.stderr)
-
-    result = subprocess.run(
+    subprocess.run(
         ["git", "commit", "-m", message],
         cwd=WORKSPACE,
         capture_output=True,
         text=True,
-        check=False
+        check=True
     )
-
-    if result.returncode != 0:
-        raise Exception(result.stderr)
 
 
 def validate_patches(task, patches):
-    if not isinstance(patches, list) or len(patches) == 0:
+    if not isinstance(patches, list) or not patches:
         raise Exception("No patches returned by developer")
 
     allowed_files = set(task.get("files", []))
@@ -66,64 +61,37 @@ def validate_patches(task, patches):
         file_path = patch.get("file")
         diff = patch.get("diff")
 
-        if isinstance(diff, str):
-            diff = normalize_patch(diff)
-            patch["diff"] = diff
-
         if not file_path:
             raise Exception(f"Patch {i} missing 'file'")
 
         if file_path not in allowed_files:
             raise Exception(f"Unauthorized file change: {file_path}")
 
-        if not diff or not isinstance(diff, str):
-            raise Exception(
-                f"Patch {file_path} missing or invalid 'diff'"
-            )
+        if not isinstance(diff, str):
+            raise Exception(f"Patch {file_path} missing or invalid diff")
+
+        diff = normalize_patch(diff)
+        patch["diff"] = diff
 
         if len(diff) > 50_000:
             raise Exception(f"Patch too large: {file_path}")
 
         if not diff.startswith("diff --git "):
-            raise Exception(
-                f"Patch missing git diff header: {file_path}"
-            )
+            raise Exception(f"Missing git header: {file_path}")
 
-        if "--- " not in diff:
-            raise Exception(f"Patch missing source header: {file_path}")
+        if "--- " not in diff or "+++ " not in diff:
+            raise Exception(f"Missing file headers: {file_path}")
 
-        if "+++ " not in diff:
-            raise Exception(f"Patch missing target header: {file_path}")
+        if "@@" not in diff:
+            raise Exception(f"Missing hunk markers: {file_path}")
 
-        if not diff.endswith("\n"):
-            raise Exception(f"Patch missing trailing newline: {file_path}")
-
-        if not any(
-            line.startswith("@@")
-            for line in diff.splitlines()
-        ):
-            raise Exception(
-                f"Patch missing hunk markers: {file_path}"
-            )
-
-        lines = diff.splitlines()
-
-        has_change_lines = any(
-            line.startswith("+") or line.startswith("-")
-            for line in lines
-            if not line.startswith("+++")
-            and not line.startswith("---")
-        )
-
-        if not has_change_lines:
-            raise Exception(
-                f"Patch contains no actual changes: {file_path}"
-            )
+        if not any(l.startswith("+") or l.startswith("-")
+                   for l in diff.splitlines()
+                   if not l.startswith(("+++", "---"))):
+            raise Exception(f"Patch has no changes: {file_path}")
 
         if "\x00" in diff:
-            raise Exception(
-                f"Patch contains null bytes: {file_path}"
-            )
+            raise Exception(f"Null byte in patch: {file_path}")
 
 
 def ensure_clean_workspace():
@@ -132,7 +100,7 @@ def ensure_clean_workspace():
         cwd=WORKSPACE,
         capture_output=True,
         text=True,
-        check=False
+        check=True
     )
 
     if status.stdout.strip():
@@ -150,10 +118,10 @@ def run_pipeline(idea):
     for task in tasks:
         log(f"Running task {task['id']}")
 
+        task.setdefault("history", [])
+
         approved = False
         attempts = 0
-
-        task.setdefault("history", [])
 
         while attempts < MAX_RETRIES and not approved:
             temp_workspace = None
@@ -178,10 +146,7 @@ def run_pipeline(idea):
                 temp_workspace = create_temp_workspace(WORKSPACE)
 
                 for patch in patches:
-                    apply_patch(
-                        temp_workspace,
-                        patch["diff"]
-                    )
+                    apply_patch(temp_workspace, patch["diff"])
 
                 test_result = run_tests(temp_workspace)
 
@@ -205,14 +170,11 @@ def run_pipeline(idea):
                         str(review_result.get("blocking_issues", []))
                     )
 
-                # FINAL COMMIT PHASE (single source of truth)
+                # FINAL APPLY (source of truth)
                 ensure_clean_workspace()
 
                 for patch in patches:
-                    apply_patch(
-                        WORKSPACE,
-                        patch["diff"]
-                    )
+                    apply_patch(WORKSPACE, patch["diff"])
 
                 git_commit(f"Task {task['id']}: {task['title']}")
 
