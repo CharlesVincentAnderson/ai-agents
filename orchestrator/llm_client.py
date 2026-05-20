@@ -6,10 +6,14 @@ import time
 from orchestrator.logger import log
 
 
+# ----------------------------
+# SAFE DEEP UNESCAPE (post-parse only)
+# ----------------------------
+
 def deep_unescape(obj):
     """
-    Recursively convert JSON-escaped sequences into real characters.
-    This fixes '\\n' -> '\n' inside patch strings.
+    Only used AFTER json.loads().
+    Converts double-escaped sequences into real characters safely.
     """
 
     if isinstance(obj, str):
@@ -24,49 +28,44 @@ def deep_unescape(obj):
     return obj
 
 
-def repair_multiline_strings(text):
-    pattern = r'"content":\s*"([\s\S]*?)"(?=\s*[\},])'
+# ----------------------------
+# STRICT JSON EXTRACTION
+# ----------------------------
 
-    def repl(match):
-        inner = match.group(1)
-
-        inner = inner.replace("\\", "\\\\")
-        inner = inner.replace("\n", "\\n")
-        inner = inner.replace("\r", "")
-        inner = inner.replace("\t", "\\t")
-        inner = inner.replace('"', '\\"')
-
-        return f'"content": "{inner}"'
-
-    return re.sub(pattern, repl, text)
-
-
-def extract_json(text):
+def extract_json(text: str):
     text = text.strip()
 
+    # Remove code fences
     text = re.sub(r"```json\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"```", "", text)
+
+    # Remove accidental "json" prefixes
     text = re.sub(r"^\s*json\s*", "", text, flags=re.IGNORECASE)
 
     text = text.strip()
 
-    text = repair_multiline_strings(text)
-
+    # First attempt: strict parse
     try:
-        parsed = json.loads(text)
-        return deep_unescape(parsed)
+        return deep_unescape(json.loads(text))
     except Exception:
         pass
 
-    object_match = re.search(r"\{.*\}", text, re.DOTALL)
+    # Fallback: extract first JSON object
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        raise ValueError(f"Failed to locate JSON object:\n{text}")
 
-    if object_match:
-        candidate = repair_multiline_strings(object_match.group(0))
-        parsed = json.loads(candidate)
-        return deep_unescape(parsed)
+    candidate = match.group(0)
 
-    raise ValueError(f"Failed to parse JSON:\n{text}")
+    try:
+        return deep_unescape(json.loads(candidate))
+    except Exception as e:
+        raise ValueError(f"Failed to parse extracted JSON:\n{candidate}\n\nError: {e}")
 
+
+# ----------------------------
+# OLLAMA CONTROL
+# ----------------------------
 
 def stop_ollama_models():
     subprocess.run(
@@ -74,7 +73,7 @@ def stop_ollama_models():
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
-    time.sleep(5)
+    time.sleep(2)
 
 
 def call_model(model, system_prompt, user_prompt):
@@ -102,9 +101,6 @@ def call_model(model, system_prompt, user_prompt):
     stdout, stderr = process.communicate(prompt)
 
     output = stdout.strip()
-
-    if output:
-        print(output)
 
     if process.returncode != 0:
         raise Exception(f"Model error: {stderr}")

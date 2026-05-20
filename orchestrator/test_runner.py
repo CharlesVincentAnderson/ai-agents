@@ -4,8 +4,8 @@ import os
 
 
 def run_tests(workspace: str):
-    print("TEMP WS CONTENTS:", os.listdir(temp_workspace))
-    print("APP EXISTS:", os.path.exists(f"{temp_workspace}/app.py"))
+    print("TEMP WS CONTENTS:", os.listdir(workspace))
+    print("APP EXISTS:", os.path.exists(f"{workspace}/app.py"))
 
     try:
         env = os.environ.copy()
