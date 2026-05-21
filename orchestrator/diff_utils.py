@@ -1,47 +1,62 @@
 import os
 
-PROJECT_ROOT = os.path.abspath(".")
-WORKSPACE = os.path.abspath("workspace/project")
+
+WORKSPACE = os.path.realpath(
+    os.path.abspath("workspace/project")
+)
 
 
-def resolve_safe_path(base, path):
-    joined = os.path.join(base, path)
-    real = os.path.realpath(joined)
+def resolve_safe_path(path):
+    """
+    Ensures all filesystem access remains
+    strictly inside workspace/project.
+    """
 
-    if not real.startswith(WORKSPACE):
-        raise Exception(f"Blocked path escape: {path}")
+    candidate = os.path.realpath(
+        os.path.join(WORKSPACE, path)
+    )
 
-    if not real.startswith(PROJECT_ROOT):
-        raise Exception(f"Blocked outside project: {path}")
+    if not candidate.startswith(WORKSPACE + os.sep):
+        raise Exception(
+            f"Blocked path escape: {path}"
+        )
 
-    return real
+    return candidate
 
 
-def apply_changes(changes, allowed_files):
-    if len(changes) > 5:
-        raise Exception("Too many files modified in one task")
+def validate_relative_path(path):
+    if os.path.isabs(path):
+        raise Exception(
+            f"Absolute paths forbidden: {path}"
+        )
 
+    normalized = os.path.normpath(path)
+
+    if normalized.startswith(".."):
+        raise Exception(
+            f"Parent traversal forbidden: {path}"
+        )
+
+    return normalized
+
+
+def apply_changes(changes):
     for change in changes:
-        file_path = change["file"]
-        content = change["content"]
+        relative_path = validate_relative_path(
+            change["file"]
+        )
 
-        # basic path sanity
-        if ".." in file_path or file_path.startswith("/"):
-            raise Exception(f"Suspicious path: {file_path}")
+        full_path = resolve_safe_path(
+            relative_path
+        )
 
-        # enforce manager-defined scope
-        if file_path not in allowed_files:
-            raise Exception(f"File not allowed: {file_path}")
+        parent = os.path.dirname(full_path)
 
-        full_path = resolve_safe_path(WORKSPACE, file_path)
+        os.makedirs(parent, exist_ok=True)
 
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
-        # backup
-        if os.path.exists(full_path):
-            os.replace(full_path, full_path + ".bak")
-
-        with open(full_path, "w") as f:
-            f.write(content)
-
-        print(f"Applied: {full_path}")
+        with open(
+            full_path,
+            "w",
+            encoding="utf-8"
+        ) as f:
+            f.write(change["content"])

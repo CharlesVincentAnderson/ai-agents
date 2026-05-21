@@ -6,7 +6,11 @@ from orchestrator.logger import log
 SYSTEM_PROMPT = load_prompt("developer_system.txt")
 
 
-def build_user_prompt(task, file_context):
+def build_user_prompt(
+    task,
+    repo_index,
+    relevant_files
+):
     return f"""
 Task ID:
 {task['id']}
@@ -17,14 +21,14 @@ Title:
 Description:
 {task['description']}
 
-Files:
-{task['files']}
-
 Acceptance Criteria:
 {task['acceptance_criteria']}
 
-Existing File Context:
-{file_context}
+Repository Index:
+{repo_index}
+
+Relevant File Contents:
+{relevant_files}
 
 Previous Feedback:
 {task.get('feedback', [])}
@@ -35,7 +39,6 @@ Attempt History:
 Latest Test Output:
 {task.get('latest_test_output', '')}
 """
-
 
 def validate_result(result):
     if not isinstance(result, dict):

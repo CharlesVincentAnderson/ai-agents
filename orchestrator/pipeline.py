@@ -44,35 +44,35 @@ def git_commit(message: str):
     )
 
 
-def validate_changes(task, changes):
-    if not isinstance(changes, list) or not changes:
-        raise Exception("No changes returned by developer")
+def validate_changes(changes):
+    if not isinstance(changes, list):
+        raise Exception("Changes must be a list")
 
-    allowed_files = set(task.get("files", []))
+    if not changes:
+        raise Exception("No changes returned")
 
-    for i, change in enumerate(changes):
+    if len(changes) > 20:
+        raise Exception("Too many modified files")
+
+    for change in changes:
         if not isinstance(change, dict):
-            raise Exception(f"Change {i} is not an object")
+            raise Exception("Invalid change object")
 
         file_path = change.get("file")
         content = change.get("content")
 
         if not file_path:
-            raise Exception(f"Change {i} missing 'file'")
-
-        if file_path not in allowed_files:
-            raise Exception(f"Unauthorized file change: {file_path}")
+            raise Exception("Missing file path")
 
         if not isinstance(content, str):
             raise Exception(
-                f"Change {file_path} missing or invalid content"
+                f"Invalid content for {file_path}"
             )
 
         if "\x00" in content:
             raise Exception(
                 f"Null byte detected in {file_path}"
             )
-
 
 def build_patches(workspace, changes):
     patches = []
@@ -136,11 +136,26 @@ def run_pipeline(idea):
                 attempts += 1
                 log(f"Attempt {attempts}")
 
-                file_context = load_file_context(
-                    WORKSPACE,
-                    task["files"]
+                from orchestrator.repo_indexer import (
+                    build_repo_index
+                )
+                from orchestrator.context_selector import (
+                    select_relevant_files
                 )
 
+                repo_index = build_repo_index(WORKSPACE)
+
+                relevant_files = select_relevant_files(
+                    WORKSPACE,
+                    repo_index,
+                    task["description"]
+                )
+
+                result = implement(
+                    task=task,
+                    repo_index=repo_index,
+                    relevant_files=relevant_files
+                )
                 result = implement(
                     task=task,
                     file_context=file_context

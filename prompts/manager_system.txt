@@ -12,7 +12,6 @@ Output format MUST be exactly:
       "id": 1,
       "title": "string",
       "description": "string",
-      "files": ["relative/path"],
       "acceptance_criteria": ["string"]
     }
   ]
