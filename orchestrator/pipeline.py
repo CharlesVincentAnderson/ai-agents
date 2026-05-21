@@ -15,20 +15,15 @@ from orchestrator.workspace_utils import (
 
 from orchestrator.context_loader import load_file_context
 from orchestrator.patcher import apply_patch
+from orchestrator.diff_gen import (
+    generate_diff,
+    get_existing_content
+)
 
 from orchestrator.config import MAX_RETRIES
 
 
 WORKSPACE = "workspace/project"
-
-
-def normalize_patch(diff: str) -> str:
-    diff = diff.encode("utf-8").decode("unicode_escape")
-
-    if not diff.endswith("\n"):
-        diff += "\n"
-
-    return diff
 
 
 def git_commit(message: str):
@@ -49,50 +44,59 @@ def git_commit(message: str):
     )
 
 
-def validate_patches(task, patches):
-    if not isinstance(patches, list) or not patches:
-        raise Exception("No patches returned by developer")
+def validate_changes(task, changes):
+    if not isinstance(changes, list) or not changes:
+        raise Exception("No changes returned by developer")
 
     allowed_files = set(task.get("files", []))
 
-    for i, patch in enumerate(patches):
-        if not isinstance(patch, dict):
-            raise Exception(f"Patch {i} is not an object")
+    for i, change in enumerate(changes):
+        if not isinstance(change, dict):
+            raise Exception(f"Change {i} is not an object")
 
-        file_path = patch.get("file")
-        diff = patch.get("diff")
+        file_path = change.get("file")
+        content = change.get("content")
 
         if not file_path:
-            raise Exception(f"Patch {i} missing 'file'")
+            raise Exception(f"Change {i} missing 'file'")
 
         if file_path not in allowed_files:
             raise Exception(f"Unauthorized file change: {file_path}")
 
-        if not isinstance(diff, str):
-            raise Exception(f"Patch {file_path} missing or invalid diff")
+        if not isinstance(content, str):
+            raise Exception(
+                f"Change {file_path} missing or invalid content"
+            )
 
-        diff = normalize_patch(diff)
-        patch["diff"] = diff
+        if "\x00" in content:
+            raise Exception(
+                f"Null byte detected in {file_path}"
+            )
 
-        if len(diff) > 50_000:
-            raise Exception(f"Patch too large: {file_path}")
 
-        if not diff.startswith("diff --git "):
-            raise Exception(f"Missing git header: {file_path}")
+def build_patches(workspace, changes):
+    patches = []
 
-        if "--- " not in diff or "+++ " not in diff:
-            raise Exception(f"Missing file headers: {file_path}")
+    for change in changes:
+        file_path = change["file"]
+        new_content = change["content"]
 
-        if "@@" not in diff:
-            raise Exception(f"Missing hunk markers: {file_path}")
+        full_path = os.path.join(workspace, file_path)
 
-        if not any(l.startswith("+") or l.startswith("-")
-                   for l in diff.splitlines()
-                   if not l.startswith(("+++", "---"))):
-            raise Exception(f"Patch has no changes: {file_path}")
+        old_content = get_existing_content(full_path)
 
-        if "\x00" in diff:
-            raise Exception(f"Null byte in patch: {file_path}")
+        diff = generate_diff(
+            old_content=old_content,
+            new_content=new_content,
+            file_path=file_path
+        )
+
+        patches.append({
+            "file": file_path,
+            "diff": diff
+        })
+
+    return patches
 
 
 def ensure_clean_workspace():
@@ -120,6 +124,7 @@ def run_pipeline(idea):
         log(f"Running task {task['id']}")
 
         task.setdefault("history", [])
+        task.setdefault("feedback", [])
 
         approved = False
         attempts = 0
@@ -141,15 +146,19 @@ def run_pipeline(idea):
                     file_context=file_context
                 )
 
-                patches = result.get("patches", [])
-                validate_patches(task, patches)
+                changes = result.get("changes", [])
+
+                validate_changes(task, changes)
+
+                patches = build_patches(
+                    WORKSPACE,
+                    changes
+                )
 
                 temp_workspace = create_temp_workspace(WORKSPACE)
 
                 for patch in patches:
                     apply_patch(temp_workspace, patch["diff"])
-                    log(f"TEMP WS FILES: {os.listdir(temp_workspace)}")
-                    log(f"LOOK FOR APP: {os.path.exists(os.path.join(temp_workspace, 'app.py'))}")
 
                 test_result = run_tests(temp_workspace)
 
@@ -173,13 +182,14 @@ def run_pipeline(idea):
                         str(review_result.get("blocking_issues", []))
                     )
 
-                # FINAL APPLY (source of truth)
                 ensure_clean_workspace()
 
                 for patch in patches:
                     apply_patch(WORKSPACE, patch["diff"])
 
-                git_commit(f"Task {task['id']}: {task['title']}")
+                git_commit(
+                    f"Task {task['id']}: {task['title']}"
+                )
 
                 approved = True
                 log("Task completed")
@@ -192,7 +202,7 @@ def run_pipeline(idea):
                     "error": str(e)
                 })
 
-                task["feedback"] = [str(e)]
+                task["feedback"].append(str(e))
 
             finally:
                 if temp_workspace:

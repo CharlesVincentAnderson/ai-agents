@@ -8,10 +8,10 @@ Output format:
 
 {
   "task_id": number,
-  "patches": [
+  "changes": [
     {
       "file": "relative/path",
-      "diff": "VALID GIT UNIFIED DIFF"
+      "content": "FULL FILE CONTENTS"
     }
   ]
 }
@@ -23,46 +23,24 @@ STRICT OUTPUT RULES:
 - Do NOT output code fences
 - Response must be parseable by Python json.loads()
 
-PATCH RULES:
-- All patches MUST be valid git unified diffs
-- Every patch MUST begin with:
-  diff --git a/<file> b/<file>
-
-NEW FILE RULES:
-- New files MUST include:
-  new file mode 100644
-  index 0000000..<hash> 100644
-  --- /dev/null
-  +++ b/<file>
-
-MODIFIED FILE RULES:
-- Modified files MUST include:
-  --- a/<file>
-  +++ b/<file>
-
-HUNK RULES:
-- ALL patches MUST contain valid @@ hunk headers
-- New file hunks MUST use:
-  @@ -0,0 +1,<count> @@
-
-LINE RULES:
-- Added lines MUST begin with +
-- Removed lines MUST begin with -
-- Context lines MUST begin with a single space
+CONTENT RULES:
+- "content" must contain the COMPLETE final contents of the file
+- Do NOT generate diffs
+- Do NOT omit unchanged lines
+- Do NOT truncate the file
 
 JSON STRING RULES:
 - Escape newlines as \\n
 - Escape internal double quotes
-- The diff MUST end with a final trailing \\n
 
 BEHAVIOR RULES:
 - Modify ONLY files listed in the task
 - Keep changes minimal
 - Preserve unrelated code exactly
 
-- If fixing a previous failed patch:
-  - Correct ONLY the formatting or patch issue
-  - Do NOT redesign the solution unnecessarily
+- If fixing a previous failed attempt:
+  - Correct ONLY the issue identified by tests or feedback
+  - Do NOT redesign unnecessarily
 
 - If a function must return a value:
   - Do NOT print
@@ -75,31 +53,19 @@ If the task is impossible:
 
 {
   "task_id": number,
-  "patches": []
+  "changes": []
 }
 
-You MUST return at least one patch whenever a change is required.
+You MUST return at least one change whenever a change is required.
 
-VALID NEW FILE EXAMPLE:
+VALID EXAMPLE:
 
 {
   "task_id": 1,
-  "patches": [
+  "changes": [
     {
       "file": "app.py",
-      "diff": "diff --git a/app.py b/app.py\\nnew file mode 100644\\nindex 0000000..1111111 100644\\n--- /dev/null\\n+++ b/app.py\\n@@ -0,0 +1,2 @@\\n+def hello():\\n+    return \\"Hello world!\\"\\n"
-    }
-  ]
-}
-
-VALID MODIFIED FILE EXAMPLE:
-
-{
-  "task_id": 1,
-  "patches": [
-    {
-      "file": "app.py",
-      "diff": "diff --git a/app.py b/app.py\\nindex abcdef1..1234567 100644\\n--- a/app.py\\n+++ b/app.py\\n@@ -1,2 +1,2 @@\\n def hello():\\n-    pass\\n+    return \\"Hello world!\\"\\n"
+      "content": "def hello():\\n    return \\"Hello world!\\"\\n"
     }
   ]
 }

@@ -41,24 +41,24 @@ def validate_result(result):
     if not isinstance(result, dict):
         raise Exception("Developer output must be a JSON object")
 
-    if "patches" not in result:
-        raise Exception("Developer output missing 'patches'")
+    if "changes" not in result:
+        raise Exception("Developer output missing 'changes'")
 
-    if not isinstance(result["patches"], list):
-        raise Exception("'patches' must be a list")
+    if not isinstance(result["changes"], list):
+        raise Exception("'changes' must be a list")
 
-    if not result["patches"]:
-        raise Exception("Developer returned no patches")
+    if not result["changes"]:
+        raise Exception("Developer returned no changes")
 
-    for patch in result["patches"]:
-        if not isinstance(patch, dict):
-            raise Exception("Patch must be an object")
+    for change in result["changes"]:
+        if not isinstance(change, dict):
+            raise Exception("Change must be an object")
 
-        if "file" not in patch:
-            raise Exception("Patch missing file")
+        if "file" not in change:
+            raise Exception("Change missing file")
 
-        if "diff" not in patch:
-            raise Exception("Patch missing diff")
+        if "content" not in change:
+            raise Exception("Change missing content")
 
 
 def implement(task, file_context):
