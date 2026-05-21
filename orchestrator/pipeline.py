@@ -13,7 +13,6 @@ from orchestrator.workspace_utils import (
     cleanup_temp_workspace
 )
 
-from orchestrator.context_loader import load_file_context
 from orchestrator.patcher import apply_patch
 from orchestrator.diff_gen import (
     generate_diff,
@@ -156,10 +155,6 @@ def run_pipeline(idea):
                     repo_index=repo_index,
                     relevant_files=relevant_files
                 )
-                result = implement(
-                    task=task,
-                    file_context=file_context
-                )
 
                 changes = result.get("changes", [])
 
@@ -183,9 +178,10 @@ def run_pipeline(idea):
                 if not test_result["passed"]:
                     raise Exception(test_result["output"])
 
-                updated_context = load_file_context(
+                updated_context = select_relevant_files(
                     temp_workspace,
-                    task["files"]
+                    repo_index,
+                    task["description"]
                 )
 
                 review_result = review(
