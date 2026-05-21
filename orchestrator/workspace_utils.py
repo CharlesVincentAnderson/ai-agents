@@ -33,11 +33,6 @@ def create_temp_workspace(source_workspace: str) -> str:
     if result.returncode != 0:
         raise Exception(f"Failed to clone workspace: {result.stderr}")
 
-    # Remove git history to isolate execution (optional but recommended)
-    git_dir = os.path.join(temp_dir, ".git")
-    if os.path.exists(git_dir):
-        shutil.rmtree(git_dir)
-
     log(f"[workspace] created temp clone at {temp_dir}")
 
     return temp_dir
