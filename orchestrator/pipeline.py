@@ -158,6 +158,9 @@ def run_pipeline(idea):
                 temp_workspace = create_temp_workspace(WORKSPACE)
 
                 for patch in patches:
+                    log("GENERATED PATCH:")
+                    log(patch["diff"])
+
                     apply_patch(temp_workspace, patch["diff"])
 
                 test_result = run_tests(temp_workspace)
@@ -185,6 +188,9 @@ def run_pipeline(idea):
                 ensure_clean_workspace()
 
                 for patch in patches:
+                    log("GENERATED PATCH:")
+                    log(patch["diff"])
+
                     apply_patch(WORKSPACE, patch["diff"])
 
                 git_commit(
