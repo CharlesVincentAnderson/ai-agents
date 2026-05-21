@@ -40,35 +40,58 @@ Latest Test Output:
 {task.get('latest_test_output', '')}
 """
 
+
 def validate_result(result):
     if not isinstance(result, dict):
-        raise Exception("Developer output must be a JSON object")
+        raise Exception(
+            "Developer output must be a JSON object"
+        )
 
     if "changes" not in result:
-        raise Exception("Developer output missing 'changes'")
+        raise Exception(
+            "Developer output missing 'changes'"
+        )
 
     if not isinstance(result["changes"], list):
-        raise Exception("'changes' must be a list")
+        raise Exception(
+            "'changes' must be a list"
+        )
 
     if not result["changes"]:
-        raise Exception("Developer returned no changes")
+        raise Exception(
+            "Developer returned no changes"
+        )
 
     for change in result["changes"]:
         if not isinstance(change, dict):
-            raise Exception("Change must be an object")
+            raise Exception(
+                "Change must be an object"
+            )
 
         if "file" not in change:
-            raise Exception("Change missing file")
+            raise Exception(
+                "Change missing file"
+            )
 
         if "content" not in change:
-            raise Exception("Change missing content")
+            raise Exception(
+                "Change missing content"
+            )
 
 
-def implement(task, file_context):
+def implement(
+    task,
+    repo_index,
+    relevant_files
+):
     result = call_model(
         model=get_model("developer"),
         system_prompt=SYSTEM_PROMPT,
-        user_prompt=build_user_prompt(task, file_context)
+        user_prompt=build_user_prompt(
+            task=task,
+            repo_index=repo_index,
+            relevant_files=relevant_files
+        )
     )
 
     log("RAW DEVELOPER RESPONSE:")

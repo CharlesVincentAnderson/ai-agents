@@ -163,7 +163,7 @@ def run_pipeline(idea):
 
                 changes = result.get("changes", [])
 
-                validate_changes(task, changes)
+                validate_changes(changes)
 
                 patches = build_patches(
                     WORKSPACE,
