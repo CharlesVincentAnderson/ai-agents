@@ -1,37 +1,65 @@
-from app import is_palindrome
+from app import int_to_roman
 
 
-def test_simple_palindrome():
-    assert is_palindrome("racecar") is True
+def test_1():
+    assert int_to_roman(1) == "I"
 
 
-def test_simple_non_palindrome():
-    assert is_palindrome("hello") is False
+def test_4():
+    assert int_to_roman(4) == "IV"
 
 
-def test_mixed_case_palindrome():
-    assert is_palindrome("RaceCar") is True
+def test_5():
+    assert int_to_roman(5) == "V"
 
 
-def test_palindrome_with_spaces():
-    assert is_palindrome("nurses run") is True
+def test_9():
+    assert int_to_roman(9) == "IX"
 
 
-def test_palindrome_with_punctuation():
-    assert is_palindrome("A man, a plan, a canal: Panama!") is True
+def test_10():
+    assert int_to_roman(10) == "X"
 
 
-def test_empty_string():
-    assert is_palindrome("") is True
+def test_40():
+    assert int_to_roman(40) == "XL"
 
 
-def test_single_character():
-    assert is_palindrome("a") is True
+def test_50():
+    assert int_to_roman(50) == "L"
 
 
-def test_numeric_palindrome():
-    assert is_palindrome("12321") is True
+def test_90():
+    assert int_to_roman(90) == "XC"
 
 
-def test_numeric_non_palindrome():
-    assert is_palindrome("12345") is False
+def test_100():
+    assert int_to_roman(100) == "C"
+
+
+def test_400():
+    assert int_to_roman(400) == "CD"
+
+
+def test_500():
+    assert int_to_roman(500) == "D"
+
+
+def test_900():
+    assert int_to_roman(900) == "CM"
+
+
+def test_1000():
+    assert int_to_roman(1000) == "M"
+
+
+def test_1994():
+    assert int_to_roman(1994) == "MCMXCIV"
+
+
+def test_2024():
+    assert int_to_roman(2024) == "MMXXIV"
+
+
+def test_3999():
+    assert int_to_roman(3999) == "MMMCMXCIX"
