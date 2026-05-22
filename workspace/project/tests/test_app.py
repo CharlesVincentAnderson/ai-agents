@@ -1,35 +1,37 @@
-# test_app.py
-
-from app import fizzbuzz
+from app import is_palindrome
 
 
-def test_fizzbuzz_1():
-    assert fizzbuzz(1) == ["1"]
+def test_simple_palindrome():
+    assert is_palindrome("racecar") is True
 
 
-def test_fizzbuzz_3():
-    assert fizzbuzz(3) == ["1", "2", "Fizz"]
+def test_simple_non_palindrome():
+    assert is_palindrome("hello") is False
 
 
-def test_fizzbuzz_5():
-    assert fizzbuzz(5) == ["1", "2", "Fizz", "4", "Buzz"]
+def test_mixed_case_palindrome():
+    assert is_palindrome("RaceCar") is True
 
 
-def test_fizzbuzz_15():
-    assert fizzbuzz(15) == [
-        "1",
-        "2",
-        "Fizz",
-        "4",
-        "Buzz",
-        "Fizz",
-        "7",
-        "8",
-        "Fizz",
-        "Buzz",
-        "11",
-        "Fizz",
-        "13",
-        "14",
-        "FizzBuzz",
-    ]
+def test_palindrome_with_spaces():
+    assert is_palindrome("nurses run") is True
+
+
+def test_palindrome_with_punctuation():
+    assert is_palindrome("A man, a plan, a canal: Panama!") is True
+
+
+def test_empty_string():
+    assert is_palindrome("") is True
+
+
+def test_single_character():
+    assert is_palindrome("a") is True
+
+
+def test_numeric_palindrome():
+    assert is_palindrome("12321") is True
+
+
+def test_numeric_non_palindrome():
+    assert is_palindrome("12345") is False
