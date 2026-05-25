@@ -2,15 +2,10 @@ import subprocess
 import sys
 import os
 
-
 def run_tests(workspace: str):
-    print("TEMP WS CONTENTS:", os.listdir(workspace))
-    print("APP EXISTS:", os.path.exists(f"{workspace}/app.py"))
-
     try:
         env = os.environ.copy()
 
-        # CRITICAL FIX: treat workspace as import root
         env["PYTHONPATH"] = workspace
 
         result = subprocess.run(
@@ -26,8 +21,11 @@ def run_tests(workspace: str):
 
         if "collected 0 items" in output:
             return {
-                "passed": True,
-                "output": output
+                "passed": False,
+                "output": (
+                    "Pytest collected 0 tests.\n\n"
+                    + output
+                )
             }
 
         return {

@@ -9,45 +9,57 @@ Return ONLY JSON.
 }
 
 IMPORTANT:
-- Ignore feedback from previous failed attempts if the current submission fixes the issue
-- Review ONLY the CURRENT submission
+- Review ONLY the current submission
+- Ignore issues already fixed in previous attempts
 
 CORE PRINCIPLE:
-- Evaluate ONLY against the acceptance criteria.
-- Do NOT invent new requirements.
-
-
-SCOPE RULES:
-- Only review files listed in the task
-- Do NOT require unrelated files
-- Do NOT require additional behavior beyond what is explicitly stated
-
-CRITICAL RULE:
-- If a function is required to RETURN a value, it must NOT be required to print or execute automatically
-- Do NOT require functions to be called unless explicitly stated
+- Evaluate ONLY against the acceptance criteria and required structure
+- Do NOT invent new requirements
 
 REJECT if:
-- Required function is missing
-- Return value is incorrect
-- Behavior does not match acceptance criteria
+- Required behavior is missing
+- Required files are missing
+- Required module separation is missing
+- Tests required by the task are missing
+- Imports are incorrect or missing
+- Return values are incorrect
 - Syntax errors exist
-- Return types or data structures differ from the requested contract
-- The implementation processes additional inputs or values not required by the specification
-- Batch-processing behavior was introduced without being explicitly requested
+- The implementation violates the requested structure
+- Single-file consolidation was used when multiple files were explicitly requested
 
 DO NOT REJECT for:
 - Missing print statements unless explicitly required
-- Function not being called unless explicitly required
+- Functions not being called automatically unless explicitly required
+- Stylistic preferences not required by the task
+
+TEST RULES:
+- Prioritize actual test failures
+- If tests fail, approval must be false
+- If pytest collected 0 tests when tests were expected, reject
+
+STRUCTURE RULES:
+- Verify all required_files exist
+- Verify functions are implemented in the correct modules
+- Verify modules import dependencies instead of duplicating implementations
+- Verify business logic is not duplicated across files unless explicitly requested
+- Verify requested file boundaries are preserved
 
 OUTPUT RULES:
-- If approved = true → blocking_issues must be []
-- If approved = false → blocking_issues must be specific and tied to acceptance criteria only
+- If approved = true:
+  - blocking_issues must be []
 
-ADDITIONAL CONTEXT:
-- You may receive feedback from previous attempts (including test failures)
-- If test output is provided, use it to guide your decision
-- Prioritize fixing test failures over stylistic concerns
-- If code is correct but incomplete, prefer REJECT with guidance rather than inventing new requirements
+- If approved = false:
+  - blocking_issues must contain specific actionable issues
 
 CONSISTENCY RULE:
-- Your decision must align with acceptance criteria AND test behavior
+- Review decisions must align with:
+  - acceptance criteria
+  - repository structure
+  - test behavior
+
+ARCHITECTURE VALIDATION RULES:
+- If acceptance criteria specify imports, verify imports exist
+- If acceptance criteria specify module boundaries, verify code is separated correctly
+- Reject duplicated logic across modules when separation was explicitly requested
+- Reject implementations that ignore required abstractions
+- Reject implementations where one module duplicates another instead of importing from it

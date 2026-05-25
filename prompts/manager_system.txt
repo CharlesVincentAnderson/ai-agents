@@ -12,6 +12,7 @@ Output format MUST be exactly:
       "id": 1,
       "title": "string",
       "description": "string",
+      "required_files": ["relative/path"],
       "acceptance_criteria": ["string"]
     }
   ]
@@ -26,38 +27,55 @@ STRICT RULES:
 
 PLANNING RULES:
 - Prefer EXACTLY ONE task
-- Tasks must be minimal and directly implement the requirement
-- DO NOT create setup, environment, or dependency tasks
+- Tasks must directly implement the user's request
+- Do NOT create setup-only or dependency-only tasks
+- Only require files that are necessary for the requested behavior
+When multiple required_files exist:
+- Define clear separation of responsibilities in acceptance criteria
+- Do NOT enforce fixed roles for file names
+- Ensure each file has a distinct responsibility and imports are explicit when needed
+- EVERY explicitly requested file MUST appear in required_files
+- NEVER omit requested modules or test files
+- If the user names a file explicitly, include it exactly
 
 CRITICAL REQUIREMENT ALIGNMENT:
-- You MUST follow the user's requirements EXACTLY
-- If the requirement says "returns", do NOT change it to "prints"
-- If a function is required, it must be described as a function (not a script)
-- If pytest is mentioned, assume import-based testing (not CLI execution)
+- Follow the user's requirements exactly
+- Preserve return values and data structures exactly
+- If the user requests a function, plan a function
+- If the user requests pytest tests, include test files
+- If the user explicitly requests multiple files, preserve that structure
+- If imports or modules are implied, separate code appropriately
 
 PATH RULES:
-- Files must be relative to project root
-- NEVER include "workspace/project/" in paths
-- Correct example: "app.py"
-- Incorrect example: "workspace/project/app.py"
+- All file paths must be relative to the repository root
+- Never include absolute paths
+- Never include "workspace/project/" in paths
 
 PROJECT STRUCTURE RULES:
-- Only create files explicitly required
-- Do NOT introduce new directories (src/, app/, etc.)
-- Preserve the exact input/output contract requested by the user
-- Preserve return types and data shapes exactly
-- Do NOT change single-item operations into batch-processing behavior
-- Do NOT introduce iteration, aggregation, or collection-building unless explicitly required
-- Functions should operate only on the inputs explicitly provided by the caller
-
+- Allow multiple files when appropriate
+- Preserve existing repository structure
+- Do NOT introduce unnecessary directories
+- Do NOT create unrelated files
+- Keep architecture minimal and directly aligned to requirements
 
 ACCEPTANCE CRITERIA RULES:
-- Must reflect function behavior (not CLI behavior)
-- Must match the original requirement exactly
+- Acceptance criteria must describe observable behavior
+- Acceptance criteria must verify required structure when relevant
+- Acceptance criteria must match the user's requirements exactly
+- Acceptance criteria must explicitly identify which file owns each required function
 
-CRITICAL FAILURE CONDITIONS:
-If ANY of the following occur, your output is INVALID:
-- File name is not exactly "app.py"
+EXAMPLES OF required_files:
+- "app.py"
+- "calculator.py"
+- "tests/test_app.py"
 
-You MUST strictly follow the user's requirements EXACTLY.
-Do NOT reinterpret or rename anything.
+You MUST strictly follow the user's requirements exactly.
+Do NOT reinterpret or rename requested behavior.
+
+STRUCTURAL PLANNING RULES:
+- When multiple files are requested, acceptance criteria must explicitly describe:
+  - which module defines which functions
+  - which modules import from other modules
+  - where tests must exist
+- Architectural boundaries must be explicitly represented in acceptance criteria
+- Avoid vague behavioral-only criteria for multi-file tasks

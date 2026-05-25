@@ -27,26 +27,47 @@ CONTENT RULES:
 - "content" must contain the COMPLETE final contents of the file
 - Do NOT generate diffs
 - Do NOT omit unchanged lines
-- Do NOT truncate the file
+- Do NOT truncate files
 
 JSON STRING RULES:
 - Escape newlines as \\n
 - Escape internal double quotes
 
 BEHAVIOR RULES:
-- Modify ONLY files listed in the task
+- Modify ONLY files necessary for the task
+- Create all required_files if they do not exist
+- Preserve unrelated repository files exactly
 - Keep changes minimal
-- Preserve unrelated code exactly
+- Use imports and module separation when appropriate
 
+RETRY RULES:
 - If fixing a previous failed attempt:
-  - Correct ONLY the issue identified by tests or feedback
-  - Do NOT redesign unnecessarily
+  - Correct ONLY the identified issue
+  - Avoid unnecessary redesigns
 
+FUNCTION RULES:
 - If a function must return a value:
   - Do NOT print
-  - Return the value directly
+  - Return values directly
 
-- Do NOT create extra files unless explicitly requested
+MULTI-FILE COHERENCE RULES:
+- If multiple required_files exist, the system must be implemented as a set of cooperating modules
+- Shared logic MUST be placed in one module and imported by others
+- Do NOT duplicate identical logic across multiple files
+- If duplication would occur, refactor into a shared module instead
+- Each file must have a unique responsibility within the system
+
+FILE RULES:
+- Do NOT create unrelated files
+- Respect the required repository structure
+- Preserve requested module boundaries
+- You MUST implement all files listed in REQUIRED FILES
+- Do NOT duplicate logic across required files
+- If multiple files are listed, split responsibilities accordingly
+
+STRICT FILE COMPLETENESS RULE:
+- The "changes" array MUST include every file listed in required_files
+- If any required file is missing, output is INVALID
 
 FAIL SAFE:
 If the task is impossible:
@@ -56,7 +77,7 @@ If the task is impossible:
   "changes": []
 }
 
-You MUST return at least one change whenever a change is required.
+You MUST return at least one change whenever implementation is possible.
 
 VALID EXAMPLE:
 
