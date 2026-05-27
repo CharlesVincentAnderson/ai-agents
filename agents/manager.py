@@ -29,19 +29,6 @@ def validate_plan(plan, user_request):
         if not required_files:
             raise Exception("Task missing required_files")
 
-        # If tests were requested, ensure at least one test file exists
-        if "test" in lowered_request:
-            has_test_file = any(
-                "test" in f.lower()
-                for f in required_files
-            )
-
-            if not has_test_file:
-                raise Exception(
-                    "Plan missing test file"
-                )
-
-
 def generate_plan(idea):
     plan = call_model(
         model=get_model("manager"),

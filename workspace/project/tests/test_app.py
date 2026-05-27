@@ -20,3 +20,4 @@ def test_divide_by_zero():
 def test_invalid_operation():
     with pytest.raises(ValueError, match="unsupported operation"):
         calculate("modulus", 10, 3)
+
